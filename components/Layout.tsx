@@ -19,7 +19,8 @@ import {
   XMarkIcon,
   ArrowTrendingUpIcon,
   SparklesIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  PencilSquareIcon
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -100,6 +101,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
                <NavItem view="attendance" icon={CalendarDaysIcon} label="Attendance" />
                <NavItem view="class_manager" icon={UserGroupIcon} label="My Class" />
                <NavItem view="psychomotor" icon={SparklesIcon} label="Psychomotor Skills" />
+               <NavItem view="fm_review" icon={PencilSquareIcon} label="Student Review" />
              </>
           )}
 
@@ -108,6 +110,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
              <>
                 <NavItem view="insights" icon={ChartPieIcon} label="Analytics" />
                 <NavItem view="approvals" icon={ClipboardDocumentCheckIcon} label="Approvals" />
+                <NavItem view="principal_review" icon={PencilSquareIcon} label="Principal's Review" />
              </>
           )}
 

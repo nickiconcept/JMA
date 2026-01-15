@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Result, Student, Subject, ClassDefinition, PsychomotorRecord, SchoolConfig } from '../types';
+import { Result, Student, Subject, ClassDefinition, PsychomotorRecord, SchoolConfig, User } from '../types';
 import { CURRENT_SESSION, CURRENT_TERM } from '../constants';
 
 interface Props {
@@ -11,11 +11,12 @@ interface Props {
   hidePrintButton?: boolean;
   schoolConfig?: SchoolConfig;
   psychomotorRecord?: PsychomotorRecord;
+  formMaster?: User; // Passed in to show specific FM details
 }
 
 const StudentReportCard: React.FC<Props> = ({ 
   student, results, subjects, classes, hidePrintButton = false,
-  schoolConfig, psychomotorRecord 
+  schoolConfig, psychomotorRecord, formMaster
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -54,12 +55,24 @@ const StudentReportCard: React.FC<Props> = ({
 
   const affective = psychomotorRecord?.affective || { punctuality: 0, attendance: 0, reliability: 0, neatness: 0, politeness: 0 };
   const psychomotor = psychomotorRecord?.psychomotor || { handwriting: 0, games: 0, communication: 0, creativity: 0, leadership: 0 };
+  
   const config = schoolConfig || { 
       schoolName: "JERE MODEL ACADEMY", 
       address: "Ungwan Shakwera, Kagarko LGA, Kaduna State",
       principalName: "The Principal",
       nextTermBegins: "____",
-      nextTermEnds: "____"
+      nextTermEnds: "____",
+      reportCardLayout: {
+          subjectLabel: 'Subject', ca1Label: 'CA 1', ca2Label: 'CA 2', assignLabel: 'Assign', 
+          notesLabel: 'Notes', examLabel: 'Exam', totalLabel: 'Total', gradeLabel: 'Grade', remarkLabel: 'Remark',
+          headingColor: 'blue'
+      }
+  };
+  
+  // Fallback if layout is missing in saved config
+  const labels = config.reportCardLayout || {
+      subjectLabel: 'Subject', ca1Label: 'CA 1', ca2Label: 'CA 2', assignLabel: 'Assign', 
+      notesLabel: 'Notes', examLabel: 'Exam', totalLabel: 'Total', gradeLabel: 'Grade', remarkLabel: 'Remark'
   };
 
   return (
@@ -160,16 +173,16 @@ const StudentReportCard: React.FC<Props> = ({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-100 text-gray-600 text-[11px] uppercase tracking-wider font-bold">
-                <th className="py-3 px-4 text-left w-1/4">Subject</th>
-                <th className="py-3 px-2 text-center">CA 1</th>
-                <th className="py-3 px-2 text-center">CA 2</th>
-                <th className="py-3 px-2 text-center">Assign</th>
-                <th className="py-3 px-2 text-center">Notes</th>
+                <th className="py-3 px-4 text-left w-1/4">{labels.subjectLabel}</th>
+                <th className="py-3 px-2 text-center">{labels.ca1Label}</th>
+                <th className="py-3 px-2 text-center">{labels.ca2Label}</th>
+                <th className="py-3 px-2 text-center">{labels.assignLabel}</th>
+                <th className="py-3 px-2 text-center">{labels.notesLabel}</th>
                 <th className="py-3 px-2 text-center bg-gray-50 text-gray-500">Total CA</th>
-                <th className="py-3 px-2 text-center">Exam</th>
-                <th className="py-3 px-4 text-center bg-blue-50 text-blue-800">Total</th>
-                <th className="py-3 px-2 text-center">Grade</th>
-                <th className="py-3 px-4 text-left w-1/4">Remark</th>
+                <th className="py-3 px-2 text-center">{labels.examLabel}</th>
+                <th className="py-3 px-4 text-center bg-blue-50 text-blue-800">{labels.totalLabel}</th>
+                <th className="py-3 px-2 text-center">{labels.gradeLabel}</th>
+                <th className="py-3 px-4 text-left w-1/4">{labels.remarkLabel}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -255,15 +268,19 @@ const StudentReportCard: React.FC<Props> = ({
            <div className="flex items-start gap-4">
               <div className="w-40 pt-2">
                  <p className="text-sm font-bold text-gray-800">Form Master</p>
-                 <p className="text-xs text-gray-500">Class Supervisor</p>
+                 <p className="text-xs text-gray-500">{formMaster ? formMaster.name : 'Class Supervisor'}</p>
               </div>
               <div className="flex-1">
                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 min-h-[50px] italic text-sm text-gray-600">
                     {results[0]?.formMasterRemark || 'No remark added yet.'}
                  </div>
                  <div className="flex justify-end mt-2 gap-4">
-                     <div className="border-b border-gray-300 w-32 h-8 relative">
-                         <span className="absolute bottom-0 right-0 text-[10px] text-gray-400">Signature</span>
+                     <div className="flex flex-col items-center border-b border-gray-300 w-32 relative min-h-[32px]">
+                         {formMaster && formMaster.signatureUrl ? (
+                            <img src={formMaster.signatureUrl} alt="FM Sign" className="h-8 object-contain" />
+                         ) : (
+                            <span className="text-[10px] text-gray-400 mt-2">Signature</span>
+                         )}
                      </div>
                      <div className="border-b border-gray-300 w-24 h-8 relative">
                          <span className="absolute bottom-0 right-0 text-[10px] text-gray-400">Date</span>

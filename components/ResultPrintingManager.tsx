@@ -13,9 +13,10 @@ interface Props {
   subjects: Subject[];
   schoolConfig: SchoolConfig;
   psychomotorRecords: PsychomotorRecord[];
+  users: User[]; // Needed to find Form Master details
 }
 
-const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, results, subjects, schoolConfig, psychomotorRecords }) => {
+const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, results, subjects, schoolConfig, psychomotorRecords, users }) => {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [mode, setMode] = useState<'INDIVIDUAL' | 'BULK'>('INDIVIDUAL');
@@ -41,6 +42,14 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
 
   const getPsychomotor = (studentId: string) => {
     return psychomotorRecords.find(p => p.studentId === studentId && p.session === CURRENT_SESSION && p.term === CURRENT_TERM);
+  };
+
+  const getFormMaster = (classId: string) => {
+      const cls = classes.find(c => c.id === classId);
+      if (cls && cls.formMasterId) {
+          return users.find(u => u.id === cls.formMasterId);
+      }
+      return undefined;
   };
 
   return (
@@ -140,6 +149,7 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
                  classes={classes}
                  schoolConfig={schoolConfig}
                  psychomotorRecord={getPsychomotor(selectedStudentId)}
+                 formMaster={getFormMaster(selectedClassId)}
               />
           )}
 
@@ -163,6 +173,7 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
                             hidePrintButton={true}
                             schoolConfig={schoolConfig}
                             psychomotorRecord={getPsychomotor(student.id)}
+                            formMaster={getFormMaster(student.classId)}
                         />
                     ))}
                 </div>

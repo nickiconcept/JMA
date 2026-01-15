@@ -45,7 +45,16 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
     setTotal(sum);
 
     const gradeEntry = GRADING_SCALE.find(g => sum >= g.min && sum <= g.max);
-    setGrade(gradeEntry ? gradeEntry.grade : 'F');
+    const calculatedGrade = gradeEntry ? gradeEntry.grade : 'F';
+    setGrade(calculatedGrade);
+
+    // Auto-generate remark if not manually edited or readonly
+    if (!isReadOnly && gradeEntry) {
+         // Only set if remark is empty or matches a standard remark to avoid overwriting custom text excessively
+         // For now, we update it reactively as requested
+         setRemark(gradeEntry.remark);
+    }
+
   }, [assessment]);
 
   const handleChange = (field: keyof Assessment, value: string) => {
@@ -180,14 +189,17 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
             <label className="text-sm font-bold text-slate-700">Teacher's Remark</label>
-            <button 
-                type="button" 
-                onClick={handleGenerateRemark}
-                className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center font-bold uppercase tracking-wide disabled:opacity-50 transition-colors bg-indigo-50 px-3 py-1 rounded-full"
-                disabled={isGeneratingRemark || isReadOnly}
-            >
-                {isGeneratingRemark ? 'Generating...' : <><SparklesIcon className="h-3 w-3 mr-1" /> AI Suggestion</>}
-            </button>
+            <div className="flex gap-2">
+                 <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded">Auto-generated</span>
+                <button 
+                    type="button" 
+                    onClick={handleGenerateRemark}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center font-bold uppercase tracking-wide disabled:opacity-50 transition-colors bg-indigo-50 px-3 py-1 rounded-full"
+                    disabled={isGeneratingRemark || isReadOnly}
+                >
+                    {isGeneratingRemark ? 'Generating...' : <><SparklesIcon className="h-3 w-3 mr-1" /> AI Override</>}
+                </button>
+            </div>
         </div>
         <textarea 
             className={`${inputClass} resize-none`}

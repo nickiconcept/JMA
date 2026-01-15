@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { User, UserRole, ClassDefinition, Subject } from '../types';
 import Button from './Button';
 
@@ -14,6 +15,7 @@ interface Props {
 const StaffManagement: React.FC<Props> = ({ users, classes, subjects, onAddUser, onUpdateUser, onDeleteUser }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState<Partial<User>>({ role: UserRole.TEACHER, isActive: true, assignedClassIds: [], assignedSubjectIds: [] });
+  const signatureRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +34,17 @@ const StaffManagement: React.FC<Props> = ({ users, classes, subjects, onAddUser,
       setCurrentUser({ ...currentUser, [field]: current.filter(x => x !== id) });
     } else {
       setCurrentUser({ ...currentUser, [field]: [...current, id] });
+    }
+  };
+
+  const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCurrentUser(prev => ({ ...prev, signatureUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -77,6 +90,19 @@ const StaffManagement: React.FC<Props> = ({ users, classes, subjects, onAddUser,
                   <option value={UserRole.TEACHER}>Teacher</option>
                   <option value={UserRole.FORM_MASTER}>Form Master</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Signature</label>
+                <input 
+                    type="file" accept="image/*" className="hidden" ref={signatureRef}
+                    onChange={handleSignatureUpload}
+                />
+                <div className="flex items-center gap-4 mt-1">
+                    <Button type="button" variant="outline" onClick={() => signatureRef.current?.click()} className="text-xs">
+                        Upload Image
+                    </Button>
+                    {currentUser.signatureUrl && <img src={currentUser.signatureUrl} alt="Sig" className="h-8 border border-gray-200" />}
+                </div>
               </div>
             </div>
 

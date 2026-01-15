@@ -19,6 +19,17 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleLayoutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+        ...prev,
+        reportCardLayout: {
+            ...prev.reportCardLayout,
+            [name]: value
+        }
+    }));
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'principalSignature') => {
     const file = e.target.files?.[0];
     if (file) {
@@ -82,6 +93,49 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
                   />
                </div>
              </div>
+          </div>
+
+          {/* Table Labels Configuration */}
+          <div className="border-t border-slate-100 pt-6">
+              <h3 className="text-lg font-bold text-slate-800 mb-4">Result Table Labels</h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Subject Column</label>
+                      <input type="text" name="subjectLabel" value={formData.reportCardLayout?.subjectLabel || 'Subject'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                  <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">1st CA</label>
+                      <input type="text" name="ca1Label" value={formData.reportCardLayout?.ca1Label || 'CA 1'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                  <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">2nd CA</label>
+                      <input type="text" name="ca2Label" value={formData.reportCardLayout?.ca2Label || 'CA 2'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                  <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Assignment</label>
+                      <input type="text" name="assignLabel" value={formData.reportCardLayout?.assignLabel || 'Assign'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                  <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Notes</label>
+                      <input type="text" name="notesLabel" value={formData.reportCardLayout?.notesLabel || 'Notes'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                   <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Exam</label>
+                      <input type="text" name="examLabel" value={formData.reportCardLayout?.examLabel || 'Exam'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                   <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Total</label>
+                      <input type="text" name="totalLabel" value={formData.reportCardLayout?.totalLabel || 'Total'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                   <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Grade</label>
+                      <input type="text" name="gradeLabel" value={formData.reportCardLayout?.gradeLabel || 'Grade'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+                   <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase">Remark</label>
+                      <input type="text" name="remarkLabel" value={formData.reportCardLayout?.remarkLabel || 'Remark'} onChange={handleLayoutChange} className="w-full border rounded p-2 text-sm"/>
+                  </div>
+              </div>
           </div>
 
           {/* Uploads */}

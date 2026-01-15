@@ -17,6 +17,7 @@ import ResultPrintingManager from './components/ResultPrintingManager';
 import PromotionManager from './components/PromotionManager';
 import PsychomotorManager from './components/PsychomotorManager';
 import SchoolConfigManager from './components/SchoolConfigManager';
+import StudentResultReview from './components/StudentResultReview';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance, mockSchoolConfig, mockPsychomotor } from './services/mockData';
@@ -339,6 +340,32 @@ const App: React.FC = () => {
     addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
   };
 
+  // Special handler for remarks from review panels
+  const handleSaveReviewRemark = (studentId: string, remark: string) => {
+      if (!user) return;
+      
+      const role = user.role;
+      setResults(prev => {
+          const studentResults = prev.filter(r => r.studentId === studentId && r.session === CURRENT_SESSION && r.term === CURRENT_TERM);
+          
+          // We update ALL results for this student for this term with the general remark
+          // In a real DB, remarks might be on a separate "ReportCard" entity, but here we attach to Results for simplicity
+          const updated = prev.map(r => {
+              if (r.studentId === studentId && r.session === CURRENT_SESSION && r.term === CURRENT_TERM) {
+                  if (role === UserRole.PRINCIPAL) {
+                      return { ...r, principalRemark: remark, isApproved: true, isLocked: true }; // Principal remark implies approval
+                  } else if (role === UserRole.FORM_MASTER) {
+                      return { ...r, formMasterRemark: remark };
+                  }
+              }
+              return r;
+          });
+          return updated;
+      });
+      addLog(user.id, user.role, 'ADD_REMARK', `Added general remark for student ${studentId}`);
+      alert("Remark saved successfully.");
+  };
+
   const handleSaveAttendance = (newRecords: Attendance[]) => {
       const filtered = attendance.filter(a => !(a.classId === newRecords[0].classId && a.date === newRecords[0].date));
       setAttendance([...filtered, ...newRecords]);
@@ -575,6 +602,14 @@ const App: React.FC = () => {
     />;
   }
 
+  const getFormMasterForClass = (classId: string) => {
+      const cls = classes.find(c => c.id === classId);
+      if (cls && cls.formMasterId) {
+          return users.find(u => u.id === cls.formMasterId);
+      }
+      return undefined;
+  };
+
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={handleViewChange}>
       {view === 'dashboard' && <DashboardView />}
@@ -640,6 +675,7 @@ const App: React.FC = () => {
               subjects={subjects}
               schoolConfig={schoolConfig}
               psychomotorRecords={psychomotor}
+              users={users}
           />
       )}
       {view === 'promotions' && (
@@ -720,6 +756,29 @@ const App: React.FC = () => {
              }}
           />
       )}
+      {/* Principal Review Panel */}
+      {view === 'principal_review' && (
+          <StudentResultReview 
+              students={students}
+              results={results}
+              classes={classes}
+              subjects={subjects}
+              userRole={user.role}
+              onSaveRemark={handleSaveReviewRemark}
+          />
+      )}
+      {/* Form Master Review Panel */}
+      {view === 'fm_review' && (
+          <StudentResultReview 
+              students={students}
+              results={results}
+              classes={classes}
+              subjects={subjects}
+              userRole={user.role}
+              onSaveRemark={handleSaveReviewRemark}
+              assignedClassIds={user.assignedClassIds}
+          />
+      )}
       {view === 'my_result' && (
         <StudentReportCard 
             student={students.find(s => s.id === user.id)!} 
@@ -728,6 +787,7 @@ const App: React.FC = () => {
             classes={classes}
             schoolConfig={schoolConfig}
             psychomotorRecord={psychomotor.find(p => p.studentId === user.id && p.session === CURRENT_SESSION && p.term === CURRENT_TERM)}
+            formMaster={getFormMasterForClass(students.find(s => s.id === user.id)!.classId)}
         />
       )}
     </Layout>

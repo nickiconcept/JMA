@@ -86,7 +86,19 @@ export const mockSchoolConfig: SchoolConfig = {
   address: "Behind Zara Kabir Filling Station, Ungwan Shakwera, Kagarko LGA, Kaduna State",
   principalName: "Mr. J. Okonkwo",
   nextTermBegins: "2025-01-08",
-  nextTermEnds: "2025-04-12"
+  nextTermEnds: "2025-04-12",
+  reportCardLayout: {
+    headingColor: 'blue',
+    subjectLabel: 'Subject',
+    ca1Label: 'CA 1',
+    ca2Label: 'CA 2',
+    assignLabel: 'Assign',
+    notesLabel: 'Notes',
+    examLabel: 'Exam',
+    totalLabel: 'Total',
+    gradeLabel: 'Grade',
+    remarkLabel: 'Remark'
+  }
 };
 
 export const mockPsychomotor: PsychomotorRecord[] = [

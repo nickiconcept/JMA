@@ -35,6 +35,7 @@ export interface User {
   role: UserRole;
   passwordHash?: string;
   isActive: boolean;
+  signatureUrl?: string; // Added for signatures
   // assignments
   assignedClassIds?: string[]; // IDs of ClassDefinition e.g., ["JSS1-A"]
   assignedSubjectIds?: string[]; // IDs of Subject e.g., ["MATH", "ENG"]
@@ -140,4 +141,17 @@ export interface SchoolConfig {
   logo?: string; // Base64 string
   nextTermBegins: string;
   nextTermEnds: string;
+  // Dynamic labels for report card table
+  reportCardLayout: {
+    headingColor: string;
+    subjectLabel: string;
+    ca1Label: string;
+    ca2Label: string;
+    assignLabel: string;
+    notesLabel: string;
+    examLabel: string;
+    totalLabel: string;
+    gradeLabel: string;
+    remarkLabel: string;
+  };
 }
