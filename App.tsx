@@ -19,7 +19,7 @@ import PromotionManager from './components/PromotionManager';
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance } from './services/mockData';
 import { MOCK_LOGS_INITIAL } from './constants';
-import { ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { ArrowLeftIcon, UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 
 const App: React.FC = () => {
   // --- Global State ---
@@ -36,6 +36,17 @@ const App: React.FC = () => {
   const [attendance, setAttendance] = useState<Attendance[]>(mockAttendance);
   const [pins, setPins] = useState<Pin[]>(mockPins);
 
+  // --- Login State ---
+  const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
+  const [loginCreds, setLoginCreds] = useState({ 
+    email: '', 
+    password: '', 
+    admissionNo: '', 
+    pin: '' 
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
   // --- Temporary State for Selection Flows ---
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
@@ -44,20 +55,87 @@ const App: React.FC = () => {
   const [formMasterViewCount, setFormMasterViewCount] = useState<number>(0);
 
   // --- Actions ---
-  const handleLogin = (role: UserRole) => {
-    let foundUser = mockUsers.find(u => u.role === role);
-    if (role === UserRole.STUDENT) {
-        foundUser = { 
-            id: 'JMA/24/001', name: 'Ibrahim Musa', email: 'student@school.com', role: UserRole.STUDENT, isActive: true,
-            assignedClassIds: [], assignedSubjectIds: []
-        };
-    }
-    if (foundUser) {
-      setUser(foundUser);
+  
+  const handleAuthSuccess = (authenticatedUser: User) => {
+      setUser(authenticatedUser);
       setView('dashboard');
-      addLog(foundUser.id, foundUser.role, 'LOGIN', 'Login successful');
-      setFormMasterViewCount(0); // Reset view count on login
-    }
+      addLog(authenticatedUser.id, authenticatedUser.role, 'LOGIN', 'Login successful');
+      setFormMasterViewCount(0);
+      setLoginCreds({ email: '', password: '', admissionNo: '', pin: '' }); // Clear creds
+  };
+
+  const performStaffLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsAuthenticating(true);
+      
+      // Simulate network delay
+      setTimeout(() => {
+          const foundUser = users.find(u => u.email.toLowerCase() === loginCreds.email.toLowerCase());
+          
+          if (foundUser) {
+              if (loginCreds.password === 'password') { // Mock password check
+                  handleAuthSuccess(foundUser);
+              } else {
+                  alert("Invalid Password. (Hint: Use 'password')");
+              }
+          } else {
+              alert("User not found. Please check your email.");
+          }
+          setIsAuthenticating(false);
+      }, 800);
+  };
+
+  const performStudentCheck = (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsAuthenticating(true);
+
+      setTimeout(() => {
+          const student = students.find(s => s.id === loginCreds.admissionNo.trim());
+          const pin = pins.find(p => p.code === loginCreds.pin.trim());
+
+          if (!student) {
+              alert("Invalid Admission Number.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          if (!pin) {
+              alert("Invalid Result Checking PIN.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          if (pin.assignedStudentId && pin.assignedStudentId !== student.id) {
+              alert("This PIN has been assigned to another student.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          if (pin.usageCount >= pin.maxUsage) {
+              alert("This PIN has reached its maximum usage limit (5 times). Please obtain a new PIN.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          // Validation Passed
+          // Update PIN usage
+          const updatedPins = pins.map(p => p.code === pin.code ? { ...p, usageCount: p.usageCount + 1, isUsed: true, assignedStudentId: student.id } : p);
+          setPins(updatedPins);
+          
+          // Create a session user for the student
+          const studentUser: User = {
+              id: student.id,
+              name: student.name,
+              email: `${student.id}@student.school`, // Dummy email
+              role: UserRole.STUDENT,
+              isActive: true,
+              assignedClassIds: [],
+              assignedSubjectIds: []
+          };
+          
+          handleAuthSuccess(studentUser);
+          setIsAuthenticating(false);
+      }, 1000);
   };
 
   const handleLogout = () => {
@@ -129,57 +207,183 @@ const App: React.FC = () => {
   // --- Views ---
 
   const LoginView = () => (
-    <div className="min-h-screen bg-green-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
-        <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-green-900 font-serif">Jere Model Academy</h1>
-            <p className="text-gray-500 mt-2">Secure Result Portal</p>
+    <div className="min-h-screen bg-blue-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8">
+            <h1 className="text-4xl font-extrabold font-display text-blue-900 tracking-tight">Jere Model Academy</h1>
+            <p className="mt-2 text-lg text-blue-600">E-Result & School Management Portal</p>
         </div>
-        <div className="space-y-4">
-            <p className="text-center text-sm font-medium text-gray-700">Select Role:</p>
-            <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" onClick={() => handleLogin(UserRole.ADMIN)}>Admin</Button>
-                <Button variant="outline" onClick={() => handleLogin(UserRole.PRINCIPAL)}>Principal</Button>
-                <Button variant="primary" onClick={() => handleLogin(UserRole.TEACHER)}>Teacher</Button>
-                <Button className="bg-purple-600 hover:bg-purple-700" onClick={() => handleLogin(UserRole.FORM_MASTER)}>Form Master</Button>
-            </div>
-            <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
-                <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Student Access</span></div>
-            </div>
-            <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                <div className="flex space-x-2">
-                    <input type="text" placeholder="Enter PIN" className="flex-1 rounded border-gray-300 text-sm p-2 border" />
-                    <Button onClick={() => handleLogin(UserRole.STUDENT)} className="bg-yellow-500 text-black">Check</Button>
+
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+            <div className="bg-white py-8 px-4 shadow-xl shadow-blue-900/10 sm:rounded-2xl sm:px-10 border border-white">
+                
+                {/* Tabs */}
+                <div className="flex space-x-2 p-1 bg-blue-50 rounded-xl mb-8">
+                    <button
+                        onClick={() => setLoginTab('RESULT')}
+                        className={`flex-1 flex items-center justify-center py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                            loginTab === 'RESULT' 
+                            ? 'bg-white text-blue-700 shadow-sm' 
+                            : 'text-blue-400 hover:text-blue-600'
+                        }`}
+                    >
+                        <AcademicCapIcon className="h-5 w-5 mr-2" />
+                        Check Result
+                    </button>
+                    <button
+                        onClick={() => setLoginTab('STAFF')}
+                        className={`flex-1 flex items-center justify-center py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                            loginTab === 'STAFF' 
+                            ? 'bg-white text-blue-700 shadow-sm' 
+                            : 'text-blue-400 hover:text-blue-600'
+                        }`}
+                    >
+                        <UserCircleIcon className="h-5 w-5 mr-2" />
+                        Staff Login
+                    </button>
                 </div>
+
+                {/* Forms */}
+                {loginTab === 'RESULT' ? (
+                    <form onSubmit={performStudentCheck} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Admission Number</label>
+                            <div className="mt-1">
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. JMA/24/001"
+                                    value={loginCreds.admissionNo}
+                                    onChange={e => setLoginCreds({...loginCreds, admissionNo: e.target.value})}
+                                    className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Result Checker PIN</label>
+                            <div className="mt-1">
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. 1234-5678-9012"
+                                    value={loginCreds.pin}
+                                    onChange={e => setLoginCreds({...loginCreds, pin: e.target.value})}
+                                    className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors font-mono tracking-wider"
+                                />
+                            </div>
+                            <p className="mt-2 text-xs text-gray-500 text-right">Max 5 uses per PIN</p>
+                        </div>
+                        <div>
+                            <Button 
+                                type="submit" 
+                                className="w-full justify-center py-3 text-base shadow-lg shadow-blue-500/20"
+                                isLoading={isAuthenticating}
+                            >
+                                Check Result
+                            </Button>
+                        </div>
+                    </form>
+                ) : (
+                    <form onSubmit={performStaffLogin} className="space-y-6">
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                            <div className="mt-1">
+                                <input
+                                    type="email"
+                                    required
+                                    placeholder="admin@jere.edu.ng"
+                                    value={loginCreds.email}
+                                    onChange={e => setLoginCreds({...loginCreds, email: e.target.value})}
+                                    className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Password</label>
+                            <div className="mt-1 relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    placeholder="••••••••"
+                                    value={loginCreds.password}
+                                    onChange={e => setLoginCreds({...loginCreds, password: e.target.value})}
+                                    className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                >
+                                    {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                                </button>
+                            </div>
+                        </div>
+                         <div>
+                            <Button 
+                                type="submit" 
+                                className="w-full justify-center py-3 text-base shadow-lg shadow-blue-500/20"
+                                isLoading={isAuthenticating}
+                            >
+                                Login to Dashboard
+                            </Button>
+                        </div>
+                        <div className="text-center text-xs text-gray-500">
+                             For testing use password: <span className="font-mono bg-gray-100 px-1 rounded">password</span>
+                        </div>
+                    </form>
+                )}
+
             </div>
+            <p className="text-center text-xs text-blue-400 mt-8">
+                &copy; {new Date().getFullYear()} Jere Model Academy. All rights reserved.
+            </p>
         </div>
-      </div>
     </div>
   );
 
   const DashboardView = () => (
-    <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-800">Welcome, {user?.name}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
-                <div className="text-gray-500 text-sm uppercase">Students</div>
-                <div className="text-3xl font-bold text-gray-800">{students.length}</div>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-                <div className="text-gray-500 text-sm uppercase">Results</div>
-                <div className="text-3xl font-bold text-gray-800">{results.length}</div>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500">
-                <div className="text-gray-500 text-sm uppercase">Staff</div>
-                <div className="text-3xl font-bold text-gray-800">{users.filter(u => u.role !== UserRole.STUDENT).length}</div>
-            </div>
-             <div className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
-                <div className="text-gray-500 text-sm uppercase">Classes</div>
-                <div className="text-3xl font-bold text-gray-800">{classes.length}</div>
-            </div>
+    <div className="space-y-8">
+        <div>
+            <h2 className="text-3xl font-bold font-display text-slate-800">Welcome, {user?.name.split(' ')[0]}</h2>
+            <p className="text-slate-500 mt-1">
+                {user?.role === UserRole.STUDENT 
+                ? 'View your academic performance below.' 
+                : 'Manage school operations and student results.'}
+            </p>
         </div>
-        {user?.role === UserRole.ADMIN && <AuditLogsTable logs={logs.slice(0, 5)} />}
+        
+        {user?.role !== UserRole.STUDENT && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {[
+                    { label: 'Students', count: students.length, color: 'blue' },
+                    { label: 'Results', count: results.length, color: 'emerald' },
+                    { label: 'Staff', count: users.filter(u => u.role !== UserRole.STUDENT).length, color: 'purple' },
+                    { label: 'Classes', count: classes.length, color: 'amber' },
+                ].map((item, idx) => (
+                    <div key={idx} className="bg-white p-6 rounded-2xl shadow-soft border border-slate-100 hover:shadow-lg transition-shadow duration-300">
+                        <div className={`text-${item.color}-600 text-xs font-bold uppercase tracking-wider mb-2`}>{item.label}</div>
+                        <div className="text-4xl font-bold text-slate-800 font-display">{item.count}</div>
+                        <div className="h-1 w-full bg-slate-100 rounded-full mt-4 overflow-hidden">
+                            <div className={`h-full bg-${item.color}-500 w-2/3 rounded-full`}></div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+        
+        {user?.role === UserRole.ADMIN && (
+            <div className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-4 font-display">Recent System Activities</h3>
+                <AuditLogsTable logs={logs.slice(0, 5)} />
+            </div>
+        )}
+
+        {user?.role === UserRole.STUDENT && (
+             <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl">
+                 <h3 className="text-xl font-bold text-blue-900 mb-2">Student Dashboard</h3>
+                 <p className="text-blue-700 mb-4">Click "My Report Card" in the menu to view your full result details.</p>
+                 <Button onClick={() => setView('my_result')}>View My Result</Button>
+             </div>
+        )}
     </div>
   );
 
@@ -210,13 +414,16 @@ const App: React.FC = () => {
         }
 
         return (
-            <div className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto">
-                <h3 className="text-xl font-bold mb-6">Select Class & Subject to Enter Results</h3>
-                <div className="space-y-4">
+            <div className="bg-white p-10 rounded-2xl shadow-soft border border-slate-100 max-w-2xl mx-auto mt-10">
+                <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold font-display text-slate-800">Result Entry</h3>
+                    <p className="text-slate-500">Select a class and subject to begin grading.</p>
+                </div>
+                <div className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Class</label>
                         <select 
-                            className="w-full border p-2 rounded" 
+                            className="w-full border-slate-200 p-3 rounded-xl focus:ring-primary-500 focus:border-primary-500 transition-colors"
                             onChange={(e) => { setSelectedClassId(e.target.value); setSelectedSubjectId(null); }}
                             value={selectedClassId || ''}
                         >
@@ -225,9 +432,9 @@ const App: React.FC = () => {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Subject</label>
                         <select 
-                             className="w-full border p-2 rounded disabled:bg-gray-100"
+                             className="w-full border-slate-200 p-3 rounded-xl focus:ring-primary-500 focus:border-primary-500 transition-colors disabled:bg-slate-50 disabled:text-slate-400"
                              onChange={(e) => setSelectedSubjectId(e.target.value)}
                              value={selectedSubjectId || ''}
                              disabled={!selectedClassId}
@@ -239,9 +446,9 @@ const App: React.FC = () => {
                     <Button 
                         disabled={!selectedClassId || !selectedSubjectId}
                         onClick={() => {}} // State updates automatically re-render, logic handles next phase
-                        className="w-full"
+                        className="w-full py-3 text-lg"
                     >
-                        Proceed to Entry
+                        Start Grading
                     </Button>
                 </div>
             </div>
@@ -254,22 +461,23 @@ const App: React.FC = () => {
     
     return (
         <div className="space-y-6">
-            <div className="flex items-center space-x-4">
-                <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-gray-600 hover:text-black">
+            <div className="flex items-center space-x-4 mb-6">
+                <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-slate-400 hover:text-primary-600 transition-colors">
                     <ArrowLeftIcon className="h-6 w-6" />
                 </button>
-                <h2 className="text-2xl font-bold">Result Entry: {subjectName}</h2>
+                <div>
+                    <h2 className="text-2xl font-bold font-display text-slate-800">Result Entry</h2>
+                    <p className="text-primary-600 font-medium">{subjectName} <span className="text-slate-400">|</span> {classStudents.length} Students</p>
+                </div>
             </div>
             
             <div className="grid grid-cols-1 gap-6">
                 {classStudents.map(student => {
                     const existing = results.find(r => r.studentId === student.id && r.subjectId === selectedSubjectId);
-                    
-                    // Single Submission Logic: If user is teacher and result exists, it's read-only
                     const isReadOnly = user?.role === UserRole.TEACHER && !!existing;
 
                     return (
-                        <div key={student.id} className="border-b pb-4">
+                        <div key={student.id}>
                             <ResultEntry 
                                 student={student} 
                                 subject={subjectName || ''}
@@ -284,7 +492,7 @@ const App: React.FC = () => {
                         </div>
                     );
                 })}
-                {classStudents.length === 0 && <p className="text-gray-500">No students found in this class.</p>}
+                {classStudents.length === 0 && <p className="text-slate-500 text-center py-10 bg-white rounded-xl">No students found in this class.</p>}
             </div>
         </div>
     );

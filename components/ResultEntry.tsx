@@ -95,40 +95,46 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
     onSave(result);
   };
 
+  const inputClass = "w-full border-slate-200 rounded-lg shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-slate-50 disabled:text-slate-500 p-2.5 border transition-all";
+
   return (
-    <form onSubmit={handleSubmit} className={`bg-white p-6 rounded-lg shadow border border-gray-200 ${isReadOnly ? 'opacity-75' : ''}`}>
-      <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-2">
+    <form onSubmit={handleSubmit} className={`bg-white p-6 rounded-2xl shadow-soft border border-slate-100 ${isReadOnly ? 'opacity-80' : ''}`}>
+      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-2">
         <div>
-           <h4 className="text-lg font-bold text-gray-800">{student.name}</h4>
-           <p className="text-sm text-gray-500">{student.id} - {subject}</p>
+           <h4 className="text-xl font-bold font-display text-slate-800">{student.name}</h4>
+           <div className="flex items-center space-x-2 text-sm text-slate-500">
+             <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono">{student.id}</span>
+             <span>•</span>
+             <span>{subject}</span>
+           </div>
         </div>
         <div className="flex items-center justify-between md:justify-end md:text-right gap-4">
-            <div className="text-2xl font-bold text-green-700">
-               <span className="text-xs text-gray-400 font-normal mr-2">Total:</span>
+            <div className="text-3xl font-bold text-primary-700 font-display">
+               <span className="text-xs text-slate-400 font-sans font-normal mr-2 uppercase tracking-wide">Total</span>
                {total}
             </div>
-            <div className={`text-sm font-bold px-2 py-1 rounded ${grade === 'F' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                Grade: {grade}
+            <div className={`text-sm font-bold px-3 py-1.5 rounded-lg border ${grade === 'F' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                Grade {grade}
             </div>
         </div>
       </div>
 
       {isReadOnly && (
-        <div className="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded text-sm flex items-center">
+        <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
             </svg>
-            Submitted. Locked for editing. Contact Admin to modify.
+            Submitted & Locked. Contact Admin to modify.
         </div>
       )}
 
       {/* Responsive Grid for Scores */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-5 mb-6">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">1st CA (10)</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">1st CA (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
+            className={inputClass}
             value={assessment.ca1}
             onChange={(e) => handleChange('ca1', e.target.value)}
             required
@@ -136,10 +142,10 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">2nd CA (10)</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">2nd CA (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
+            className={inputClass}
             value={assessment.ca2}
             onChange={(e) => handleChange('ca2', e.target.value)}
             required
@@ -147,10 +153,10 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Assign (10)</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Assign (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
+            className={inputClass}
             value={assessment.assignment}
             onChange={(e) => handleChange('assignment', e.target.value)}
             required
@@ -158,10 +164,10 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Notes (10)</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Notes (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
+            className={inputClass}
             value={assessment.notes}
             onChange={(e) => handleChange('notes', e.target.value)}
             required
@@ -169,10 +175,10 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
           />
         </div>
         <div className="col-span-2 md:col-span-1">
-          <label className="block text-xs font-medium text-gray-500 mb-1">Exam (60)</label>
+          <label className="block text-xs font-semibold text-primary-600 uppercase tracking-wider mb-1.5">Exam (60)</label>
           <input 
             type="number" min="0" max="60" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 bg-green-50 disabled:bg-gray-200 p-2 border"
+            className={`${inputClass} bg-primary-50/50 border-primary-200 focus:ring-primary-600`}
             value={assessment.exam}
             onChange={(e) => handleChange('exam', e.target.value)}
             required
@@ -181,30 +187,30 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-gray-700">Teacher's Remark</label>
+            <label className="block text-sm font-medium text-slate-700">Teacher's Remark</label>
             <button 
                 type="button" 
                 onClick={handleGenerateRemark}
-                className="text-xs text-purple-600 hover:text-purple-800 flex items-center font-medium disabled:opacity-50"
+                className="text-xs text-primary-600 hover:text-primary-800 flex items-center font-bold uppercase tracking-wide disabled:opacity-50 transition-colors"
                 disabled={isGeneratingRemark || isReadOnly}
             >
                 {isGeneratingRemark ? 'Thinking...' : '✨ Generate with AI'}
             </button>
         </div>
         <textarea 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
+            className={inputClass}
             rows={2}
             value={remark}
             onChange={(e) => setRemark(e.target.value)}
-            placeholder="Enter remark here..."
+            placeholder="Enter a comprehensive remark..."
             disabled={isReadOnly}
         />
       </div>
 
       {!isReadOnly && (
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full py-3 shadow-md shadow-primary-500/20">
           Save Result
         </Button>
       )}
