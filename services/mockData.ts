@@ -1,5 +1,6 @@
-import { User, UserRole, Student, Result, Term, Pin, ClassDefinition, Subject, PromotionStatus, Attendance } from "../types";
-import { CURRENT_SESSION, CURRENT_TERM } from "../constants";
+
+import { User, UserRole, Student, Result, Term, Pin, ClassDefinition, Subject, PromotionStatus, Attendance, SchoolConfig, PsychomotorRecord } from "../types";
+import { CURRENT_SESSION, CURRENT_TERM, SCHOOL_NAME } from "../constants";
 
 export const mockClasses: ClassDefinition[] = [
   { id: 'JSS1-A', name: 'JSS 1', arm: 'A', formMasterId: 'form-1' },
@@ -78,4 +79,23 @@ export const mockAttendance: Attendance[] = [
 
 export const mockPins: Pin[] = [
   { code: '1234-5678-9012', usageCount: 0, maxUsage: 5, generatedBy: 'admin-1', expiryDate: '2025-12-31', isUsed: false }
+];
+
+export const mockSchoolConfig: SchoolConfig = {
+  schoolName: SCHOOL_NAME,
+  address: "Behind Zara Kabir Filling Station, Ungwan Shakwera, Kagarko LGA, Kaduna State",
+  principalName: "Mr. J. Okonkwo",
+  nextTermBegins: "2025-01-08",
+  nextTermEnds: "2025-04-12"
+};
+
+export const mockPsychomotor: PsychomotorRecord[] = [
+  {
+    id: 'psy-1',
+    studentId: 'JMA/24/001',
+    session: CURRENT_SESSION,
+    term: CURRENT_TERM,
+    affective: { punctuality: 4, attendance: 5, reliability: 4, neatness: 3, politeness: 5 },
+    psychomotor: { handwriting: 4, games: 3, communication: 5, creativity: 4, leadership: 4 }
+  }
 ];

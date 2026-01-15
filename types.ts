@@ -110,3 +110,34 @@ export interface Pin {
   isUsed: boolean;
   assignedStudentId?: string; // Optional: Only this student can use this PIN
 }
+
+export interface PsychomotorRecord {
+  id: string;
+  studentId: string;
+  session: string;
+  term: Term;
+  affective: {
+    punctuality: number;
+    attendance: number;
+    reliability: number;
+    neatness: number;
+    politeness: number;
+  };
+  psychomotor: {
+    handwriting: number;
+    games: number;
+    communication: number;
+    creativity: number;
+    leadership: number;
+  };
+}
+
+export interface SchoolConfig {
+  schoolName: string;
+  address: string;
+  principalName: string;
+  principalSignature?: string; // Base64 string
+  logo?: string; // Base64 string
+  nextTermBegins: string;
+  nextTermEnds: string;
+}

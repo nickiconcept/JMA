@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { User, UserRole, ClassDefinition, Student, Result, Subject } from '../types';
+import { User, UserRole, ClassDefinition, Student, Result, Subject, SchoolConfig, PsychomotorRecord } from '../types';
 import Button from './Button';
 import StudentReportCard from './StudentReportCard';
+import { CURRENT_SESSION, CURRENT_TERM } from '../constants';
 
 interface Props {
   user: User;
@@ -10,9 +11,11 @@ interface Props {
   students: Student[];
   results: Result[];
   subjects: Subject[];
+  schoolConfig: SchoolConfig;
+  psychomotorRecords: PsychomotorRecord[];
 }
 
-const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, results, subjects }) => {
+const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, results, subjects, schoolConfig, psychomotorRecords }) => {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [mode, setMode] = useState<'INDIVIDUAL' | 'BULK'>('INDIVIDUAL');
@@ -34,6 +37,10 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
       document.body.innerHTML = originalContents;
       window.location.reload();
     }
+  };
+
+  const getPsychomotor = (studentId: string) => {
+    return psychomotorRecords.find(p => p.studentId === studentId && p.session === CURRENT_SESSION && p.term === CURRENT_TERM);
   };
 
   return (
@@ -74,10 +81,6 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
                 </div>
             )}
             
-            {/* Form Masters are restricted to seeing their class, but usually print individually or bulk if allowed. 
-                Constraint: "Admin can print... bulk result printing". Implies FM might not have Bulk. 
-                However, usually FM needs to print for their class. We will allow FM Bulk if they select their class.
-            */}
              {selectedClassId && user.role === UserRole.FORM_MASTER && (
                 <div>
                      <label className="block text-sm font-medium text-gray-700 mb-1">Printing Mode</label>
@@ -135,6 +138,8 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
                  results={results.filter(r => r.studentId === selectedStudentId)}
                  subjects={subjects}
                  classes={classes}
+                 schoolConfig={schoolConfig}
+                 psychomotorRecord={getPsychomotor(selectedStudentId)}
               />
           )}
 
@@ -156,6 +161,8 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
                             subjects={subjects}
                             classes={classes}
                             hidePrintButton={true}
+                            schoolConfig={schoolConfig}
+                            psychomotorRecord={getPsychomotor(student.id)}
                         />
                     ))}
                 </div>
