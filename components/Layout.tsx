@@ -1,7 +1,7 @@
 
 import React, { ReactNode } from 'react';
-import { User, UserRole } from '../types.ts';
-import { SCHOOL_NAME } from '../constants.ts';
+import { User, UserRole } from '../types';
+import { SCHOOL_NAME } from '../constants';
 import { 
   HomeIcon, 
   UserGroupIcon, 
