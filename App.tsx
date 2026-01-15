@@ -18,7 +18,7 @@ import ResultPrintingManager from './components/ResultPrintingManager';
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance } from './services/mockData';
 import { MOCK_LOGS_INITIAL } from './constants';
-import { LockClosedIcon, UserIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { ArrowLeftIcon } from '@heroicons/react/24/solid';
 
 const App: React.FC = () => {
   // --- Global State ---
@@ -117,6 +117,12 @@ const App: React.FC = () => {
           if(!handleFormMasterViewAccess()) return;
       }
       setView(newView);
+  };
+
+  const generatePinCode = () => {
+      // Generate ####-####-####
+      const p = () => Math.floor(1000 + Math.random() * 9000);
+      return `${p()}-${p()}-${p()}`;
   };
 
   // --- Views ---
@@ -330,13 +336,25 @@ const App: React.FC = () => {
       {view === 'pins' && (
           <PinManager 
             pins={pins}
-            onGenerate={(amount) => {
-                const newPins = Array(amount).fill(null).map((_, i) => ({
-                    code: `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    usageCount: 0, maxUsage: 5, generatedBy: user.id, expiryDate: '2025-12-31', isUsed: false
+            classes={classes}
+            students={students}
+            onGenerateForClass={(classId, amountPerStudent) => {
+                const classStudents = students.filter(s => s.classId === classId);
+                if (classStudents.length === 0) return;
+
+                const newPins: Pin[] = classStudents.map(student => ({
+                    code: generatePinCode(),
+                    usageCount: 0,
+                    maxUsage: 5,
+                    generatedBy: user.id,
+                    expiryDate: '2025-12-31',
+                    isUsed: false,
+                    assignedStudentId: student.id
                 }));
+                
                 setPins([...newPins, ...pins]);
-                addLog(user.id, user.role, 'GENERATE_PINS', `Generated ${amount} pins`);
+                addLog(user.id, user.role, 'GENERATE_PINS', `Generated ${newPins.length} pins for class ${classId}`);
+                alert(`Successfully generated ${newPins.length} pins for ${classStudents.length} students.`);
             }}
             onAssignStudent={(code, studentId) => {
                 setPins(pins.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));

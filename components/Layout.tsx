@@ -1,5 +1,5 @@
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState } from 'react';
 import { User, UserRole } from '../types';
 import { SCHOOL_NAME } from '../constants';
 import { 
@@ -14,7 +14,9 @@ import {
   UsersIcon,
   BookOpenIcon,
   ChartPieIcon,
-  PrinterIcon
+  PrinterIcon,
+  Bars3Icon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -26,11 +28,18 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, onChangeView }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   if (!user) return <>{children}</>;
+
+  const handleNavClick = (view: string) => {
+    onChangeView(view);
+    setIsSidebarOpen(false); // Close sidebar on mobile when item clicked
+  };
 
   const NavItem = ({ view, icon: Icon, label }: { view: string, icon: any, label: string }) => (
     <button
-      onClick={() => onChangeView(view)}
+      onClick={() => handleNavClick(view)}
       className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium transition-colors ${
         currentView === view 
           ? 'bg-green-800 text-white border-r-4 border-yellow-400' 
@@ -43,12 +52,29 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-600 bg-opacity-75 z-20 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* Sidebar */}
-      <div className="hidden md:flex flex-col w-64 bg-green-900 text-white shadow-xl">
-        <div className="p-6 border-b border-green-800">
-          <h1 className="text-xl font-bold text-yellow-400 font-serif tracking-wide">{SCHOOL_NAME}</h1>
-          <p className="text-xs text-green-200 mt-1">E-Result Portal</p>
+      <div className={`
+        fixed inset-y-0 left-0 z-30 w-64 bg-green-900 text-white shadow-xl transform transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0 md:flex md:flex-col
+      `}>
+        <div className="p-6 border-b border-green-800 flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold text-yellow-400 font-serif tracking-wide">{SCHOOL_NAME}</h1>
+            <p className="text-xs text-green-200 mt-1">E-Result Portal</p>
+          </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-300 hover:text-white">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto py-4">
@@ -119,16 +145,19 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Mobile Header */}
-        <header className="md:hidden bg-green-900 text-white p-4 flex justify-between items-center shadow-md">
-           <h1 className="text-lg font-bold text-yellow-400">{SCHOOL_NAME}</h1>
-           <button onClick={onLogout} className="text-white">
-             <ArrowRightOnRectangleIcon className="h-6 w-6" />
-           </button>
+        <header className="md:hidden bg-green-900 text-white p-4 flex justify-between items-center shadow-md z-10">
+           <div className="flex items-center space-x-3">
+             <button onClick={() => setIsSidebarOpen(true)} className="text-white hover:text-yellow-400">
+               <Bars3Icon className="h-6 w-6" />
+             </button>
+             <h1 className="text-lg font-bold text-yellow-400 truncate">{SCHOOL_NAME}</h1>
+           </div>
+           {/* Placeholder for balance or right side items if needed */}
         </header>
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 md:p-8 w-full">
           {children}
         </main>
       </div>

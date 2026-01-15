@@ -11,7 +11,7 @@ interface Props {
   subjectId: string;
   onSave: (result: Result) => void;
   existingResult?: Result;
-  isReadOnly?: boolean; // New prop to enforce role-based locking
+  isReadOnly?: boolean; 
 }
 
 const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, existingResult, isReadOnly = false }) => {
@@ -97,13 +97,16 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
 
   return (
     <form onSubmit={handleSubmit} className={`bg-white p-6 rounded-lg shadow border border-gray-200 ${isReadOnly ? 'opacity-75' : ''}`}>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-2">
         <div>
            <h4 className="text-lg font-bold text-gray-800">{student.name}</h4>
            <p className="text-sm text-gray-500">{student.id} - {subject}</p>
         </div>
-        <div className="text-right">
-            <div className="text-2xl font-bold text-green-700">{total}</div>
+        <div className="flex items-center justify-between md:justify-end md:text-right gap-4">
+            <div className="text-2xl font-bold text-green-700">
+               <span className="text-xs text-gray-400 font-normal mr-2">Total:</span>
+               {total}
+            </div>
             <div className={`text-sm font-bold px-2 py-1 rounded ${grade === 'F' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                 Grade: {grade}
             </div>
@@ -119,12 +122,13 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
         </div>
       )}
 
+      {/* Responsive Grid for Scores */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">1st CA (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
             value={assessment.ca1}
             onChange={(e) => handleChange('ca1', e.target.value)}
             required
@@ -135,7 +139,7 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
           <label className="block text-xs font-medium text-gray-500 mb-1">2nd CA (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
             value={assessment.ca2}
             onChange={(e) => handleChange('ca2', e.target.value)}
             required
@@ -146,7 +150,7 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
           <label className="block text-xs font-medium text-gray-500 mb-1">Assign (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
             value={assessment.assignment}
             onChange={(e) => handleChange('assignment', e.target.value)}
             required
@@ -157,18 +161,18 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
           <label className="block text-xs font-medium text-gray-500 mb-1">Notes (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
             value={assessment.notes}
             onChange={(e) => handleChange('notes', e.target.value)}
             required
             disabled={isReadOnly}
           />
         </div>
-        <div>
+        <div className="col-span-2 md:col-span-1">
           <label className="block text-xs font-medium text-gray-500 mb-1">Exam (60)</label>
           <input 
             type="number" min="0" max="60" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 bg-green-50 disabled:bg-gray-200"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 bg-green-50 disabled:bg-gray-200 p-2 border"
             value={assessment.exam}
             onChange={(e) => handleChange('exam', e.target.value)}
             required
@@ -190,7 +194,7 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
             </button>
         </div>
         <textarea 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100 p-2 border"
             rows={2}
             value={remark}
             onChange={(e) => setRemark(e.target.value)}
