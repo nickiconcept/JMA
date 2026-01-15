@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Button from './components/Button';
 import ResultEntry from './components/ResultEntry';
@@ -19,194 +19,26 @@ import PromotionManager from './components/PromotionManager';
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance } from './services/mockData';
 import { MOCK_LOGS_INITIAL } from './constants';
-import { ArrowLeftIcon, UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
+import { ArrowLeftIcon, UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, InformationCircleIcon } from '@heroicons/react/24/solid';
 
-const App: React.FC = () => {
-  // --- Global State ---
-  const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState('dashboard');
-  
-  // --- Data State ---
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [students, setStudents] = useState<Student[]>(mockStudents);
-  const [results, setResults] = useState<Result[]>(mockResults);
-  const [logs, setLogs] = useState<AuditLog[]>(MOCK_LOGS_INITIAL as any);
-  const [classes, setClasses] = useState<ClassDefinition[]>(mockClasses);
-  const [subjects, setSubjects] = useState<Subject[]>(mockSubjects);
-  const [attendance, setAttendance] = useState<Attendance[]>(mockAttendance);
-  const [pins, setPins] = useState<Pin[]>(mockPins);
+// --- Login Component Extracted to fix Focus Issues ---
+interface LoginScreenProps {
+  loginTab: 'RESULT' | 'STAFF';
+  setLoginTab: (t: 'RESULT' | 'STAFF') => void;
+  loginCreds: any;
+  setLoginCreds: React.Dispatch<React.SetStateAction<any>>;
+  performStudentCheck: (e: React.FormEvent) => void;
+  performStaffLogin: (e: React.FormEvent) => void;
+  showPassword: boolean;
+  setShowPassword: (b: boolean) => void;
+  isAuthenticating: boolean;
+}
 
-  // --- Login State ---
-  const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
-  const [loginCreds, setLoginCreds] = useState({ 
-    email: '', 
-    password: '', 
-    admissionNo: '', 
-    pin: '' 
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-
-  // --- Temporary State for Selection Flows ---
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
-  
-  // --- Feature Logic State ---
-  const [formMasterViewCount, setFormMasterViewCount] = useState<number>(0);
-
-  // --- Actions ---
-  
-  const handleAuthSuccess = (authenticatedUser: User) => {
-      setUser(authenticatedUser);
-      setView('dashboard');
-      addLog(authenticatedUser.id, authenticatedUser.role, 'LOGIN', 'Login successful');
-      setFormMasterViewCount(0);
-      setLoginCreds({ email: '', password: '', admissionNo: '', pin: '' }); // Clear creds
-  };
-
-  const performStaffLogin = (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsAuthenticating(true);
-      
-      // Simulate network delay
-      setTimeout(() => {
-          const foundUser = users.find(u => u.email.toLowerCase() === loginCreds.email.toLowerCase());
-          
-          if (foundUser) {
-              if (loginCreds.password === 'password') { // Mock password check
-                  handleAuthSuccess(foundUser);
-              } else {
-                  alert("Invalid Password. (Hint: Use 'password')");
-              }
-          } else {
-              alert("User not found. Please check your email.");
-          }
-          setIsAuthenticating(false);
-      }, 800);
-  };
-
-  const performStudentCheck = (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsAuthenticating(true);
-
-      setTimeout(() => {
-          const student = students.find(s => s.id === loginCreds.admissionNo.trim());
-          const pin = pins.find(p => p.code === loginCreds.pin.trim());
-
-          if (!student) {
-              alert("Invalid Admission Number.");
-              setIsAuthenticating(false);
-              return;
-          }
-
-          if (!pin) {
-              alert("Invalid Result Checking PIN.");
-              setIsAuthenticating(false);
-              return;
-          }
-
-          if (pin.assignedStudentId && pin.assignedStudentId !== student.id) {
-              alert("This PIN has been assigned to another student.");
-              setIsAuthenticating(false);
-              return;
-          }
-
-          if (pin.usageCount >= pin.maxUsage) {
-              alert("This PIN has reached its maximum usage limit (5 times). Please obtain a new PIN.");
-              setIsAuthenticating(false);
-              return;
-          }
-
-          // Validation Passed
-          // Update PIN usage
-          const updatedPins = pins.map(p => p.code === pin.code ? { ...p, usageCount: p.usageCount + 1, isUsed: true, assignedStudentId: student.id } : p);
-          setPins(updatedPins);
-          
-          // Create a session user for the student
-          const studentUser: User = {
-              id: student.id,
-              name: student.name,
-              email: `${student.id}@student.school`, // Dummy email
-              role: UserRole.STUDENT,
-              isActive: true,
-              assignedClassIds: [],
-              assignedSubjectIds: []
-          };
-          
-          handleAuthSuccess(studentUser);
-          setIsAuthenticating(false);
-      }, 1000);
-  };
-
-  const handleLogout = () => {
-     if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
-     setUser(null);
-     setView('login');
-     setSelectedClassId(null);
-     setSelectedSubjectId(null);
-  };
-
-  const addLog = (userId: string, role: UserRole, action: string, details: string) => {
-    const newLog: AuditLog = {
-      id: `log-${Date.now()}`,
-      userId, userRole: role, action, details,
-      timestamp: new Date().toISOString(),
-      ipAddress: '127.0.0.1'
-    };
-    setLogs(prev => [newLog, ...prev]);
-  };
-
-  const handleSaveResult = (newResult: Result) => {
-    setResults(prev => {
-        const idx = prev.findIndex(r => r.id === newResult.id);
-        if (idx >= 0) {
-            const updated = [...prev];
-            updated[idx] = newResult;
-            return updated;
-        }
-        return [...prev, newResult];
-    });
-    addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
-  };
-
-  const handleSaveAttendance = (newRecords: Attendance[]) => {
-      // Remove existing records for same date/class to avoid duplicates (naive approach)
-      const filtered = attendance.filter(a => !(a.classId === newRecords[0].classId && a.date === newRecords[0].date));
-      setAttendance([...filtered, ...newRecords]);
-      addLog(user?.id || 'sys', user?.role || UserRole.FORM_MASTER, 'MARK_ATTENDANCE', `Marked attendance for ${newRecords.length} students`);
-      alert("Attendance Saved!");
-  };
-
-  const handleFormMasterViewAccess = () => {
-     if (user?.role === UserRole.FORM_MASTER) {
-         if (formMasterViewCount >= 2) {
-             alert("Access Denied: You have exceeded the limit (2) for viewing the Broadsheet/Result Printing.");
-             return false;
-         }
-         setFormMasterViewCount(prev => prev + 1);
-         // Alert to inform user of remaining usage
-         alert(`Access Granted. You have used ${formMasterViewCount + 1}/2 accesses for this session.`);
-     }
-     return true;
-  };
-
-  const handleViewChange = (newView: string) => {
-      // Check limits if accessing Printing or Approvals/Broadsheet
-      if ((newView === 'approvals' || newView === 'print_results') && user?.role === UserRole.FORM_MASTER) {
-          if(!handleFormMasterViewAccess()) return;
-      }
-      setView(newView);
-  };
-
-  const generatePinCode = () => {
-      // Generate ####-####-####
-      const p = () => Math.floor(1000 + Math.random() * 9000);
-      return `${p()}-${p()}-${p()}`;
-  };
-
-  // --- Views ---
-
-  const LoginView = () => (
+const LoginScreen: React.FC<LoginScreenProps> = ({
+  loginTab, setLoginTab, loginCreds, setLoginCreds, 
+  performStudentCheck, performStaffLogin, showPassword, setShowPassword, isAuthenticating
+}) => {
+  return (
     <div className="min-h-screen bg-blue-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
         <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8">
             <h1 className="text-4xl font-extrabold font-display text-blue-900 tracking-tight">Jere Model Academy</h1>
@@ -281,6 +113,15 @@ const App: React.FC = () => {
                                 Check Result
                             </Button>
                         </div>
+                        
+                        {/* Demo Data for Result */}
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-800">
+                             <div className="font-bold flex items-center mb-1">
+                                <InformationCircleIcon className="h-4 w-4 mr-1"/> Demo Credentials:
+                             </div>
+                             <p>Admission No: <span className="font-mono font-bold">JMA/24/001</span></p>
+                             <p>PIN: <span className="font-mono font-bold">1234-5678-9012</span></p>
+                        </div>
                     </form>
                 ) : (
                     <form onSubmit={performStaffLogin} className="space-y-6">
@@ -326,8 +167,23 @@ const App: React.FC = () => {
                                 Login to Dashboard
                             </Button>
                         </div>
-                        <div className="text-center text-xs text-gray-500">
-                             For testing use password: <span className="font-mono bg-gray-100 px-1 rounded">password</span>
+                        
+                        {/* Demo Data for Staff */}
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-800">
+                             <div className="font-bold flex items-center mb-1">
+                                <InformationCircleIcon className="h-4 w-4 mr-1"/> Demo Credentials:
+                             </div>
+                             <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span className="font-semibold block text-blue-600">Admin</span>
+                                    admin@jere.edu.ng
+                                </div>
+                                <div>
+                                    <span className="font-semibold block text-blue-600">Teacher</span>
+                                    adewale@jere.edu.ng
+                                </div>
+                             </div>
+                             <p className="mt-2 border-t border-blue-200 pt-1">Password for all: <span className="font-mono font-bold">password</span></p>
                         </div>
                     </form>
                 )}
@@ -339,7 +195,228 @@ const App: React.FC = () => {
         </div>
     </div>
   );
+};
 
+
+const App: React.FC = () => {
+  // --- LocalStorage Helper ---
+  const loadFromStorage = <T,>(key: string, fallback: T): T => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : fallback;
+    } catch (e) {
+      console.error(`Error loading ${key} from localStorage`, e);
+      return fallback;
+    }
+  };
+
+  // --- Global State ---
+  const [user, setUser] = useState<User | null>(null);
+  const [view, setView] = useState('dashboard');
+  
+  // --- Data State (Persisted) ---
+  const [users, setUsers] = useState<User[]>(() => loadFromStorage('jma_users', mockUsers));
+  const [students, setStudents] = useState<Student[]>(() => loadFromStorage('jma_students', mockStudents));
+  const [results, setResults] = useState<Result[]>(() => loadFromStorage('jma_results', mockResults));
+  const [logs, setLogs] = useState<AuditLog[]>(() => loadFromStorage('jma_logs', MOCK_LOGS_INITIAL as any));
+  const [classes, setClasses] = useState<ClassDefinition[]>(() => loadFromStorage('jma_classes', mockClasses));
+  const [subjects, setSubjects] = useState<Subject[]>(() => loadFromStorage('jma_subjects', mockSubjects));
+  const [attendance, setAttendance] = useState<Attendance[]>(() => loadFromStorage('jma_attendance', mockAttendance));
+  const [pins, setPins] = useState<Pin[]>(() => loadFromStorage('jma_pins', mockPins));
+
+  // --- Persistence Effects ---
+  useEffect(() => localStorage.setItem('jma_users', JSON.stringify(users)), [users]);
+  useEffect(() => localStorage.setItem('jma_students', JSON.stringify(students)), [students]);
+  useEffect(() => localStorage.setItem('jma_results', JSON.stringify(results)), [results]);
+  useEffect(() => localStorage.setItem('jma_logs', JSON.stringify(logs)), [logs]);
+  useEffect(() => localStorage.setItem('jma_classes', JSON.stringify(classes)), [classes]);
+  useEffect(() => localStorage.setItem('jma_subjects', JSON.stringify(subjects)), [subjects]);
+  useEffect(() => localStorage.setItem('jma_attendance', JSON.stringify(attendance)), [attendance]);
+  useEffect(() => localStorage.setItem('jma_pins', JSON.stringify(pins)), [pins]);
+
+  // --- Login State ---
+  const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
+  const [loginCreds, setLoginCreds] = useState({ 
+    email: '', 
+    password: '', 
+    admissionNo: '', 
+    pin: '' 
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // --- Temporary State for Selection Flows ---
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  
+  // --- Feature Logic State ---
+  const [formMasterViewCount, setFormMasterViewCount] = useState<number>(0);
+
+  // --- Actions ---
+
+  const addLog = (userId: string, role: string, action: string, details: string) => {
+    const newLog: AuditLog = {
+      id: `log-${Date.now()}`,
+      userId, 
+      userRole: role as UserRole, // Casting string to enum for flexibility in system logs
+      action, 
+      details,
+      timestamp: new Date().toISOString(),
+      ipAddress: '127.0.0.1' // In a real app, this comes from the server
+    };
+    setLogs(prev => [newLog, ...prev]);
+  };
+  
+  const handleAuthSuccess = (authenticatedUser: User) => {
+      setUser(authenticatedUser);
+      setView('dashboard');
+      addLog(authenticatedUser.id, authenticatedUser.role, 'LOGIN_SUCCESS', 'User login successful');
+      setFormMasterViewCount(0);
+      setLoginCreds({ email: '', password: '', admissionNo: '', pin: '' }); // Clear creds
+  };
+
+  const performStaffLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsAuthenticating(true);
+      
+      const emailInput = loginCreds.email.trim();
+      
+      // Simulate network delay
+      setTimeout(() => {
+          const foundUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
+          
+          if (foundUser) {
+              if (loginCreds.password === 'password') { // Mock password check
+                  handleAuthSuccess(foundUser);
+              } else {
+                  addLog('system', 'ANONYMOUS', 'LOGIN_FAILED', `Failed login: Invalid password for ${emailInput}`);
+                  alert("Invalid Password. (Hint: Use 'password')");
+              }
+          } else {
+              addLog('system', 'ANONYMOUS', 'LOGIN_FAILED', `Failed login: User not found ${emailInput}`);
+              alert("User not found. Please check your email.");
+          }
+          setIsAuthenticating(false);
+      }, 800);
+  };
+
+  const performStudentCheck = (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsAuthenticating(true);
+
+      const admissionInput = loginCreds.admissionNo.trim();
+
+      setTimeout(() => {
+          const student = students.find(s => s.id === admissionInput);
+          const pin = pins.find(p => p.code === loginCreds.pin.trim());
+
+          if (!student) {
+              addLog('system', 'ANONYMOUS', 'RESULT_CHECK_FAILED', `Invalid Admission No: ${admissionInput}`);
+              alert("Invalid Admission Number.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          if (!pin) {
+              addLog('system', 'ANONYMOUS', 'RESULT_CHECK_FAILED', `Invalid PIN attempt for ${admissionInput}`);
+              alert("Invalid Result Checking PIN.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          if (pin.assignedStudentId && pin.assignedStudentId !== student.id) {
+              addLog('system', 'ANONYMOUS', 'RESULT_CHECK_FAILED', `PIN mismatch for ${admissionInput}`);
+              alert("This PIN has been assigned to another student.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          if (pin.usageCount >= pin.maxUsage) {
+              addLog('system', 'ANONYMOUS', 'RESULT_CHECK_FAILED', `Expired PIN used for ${admissionInput}`);
+              alert("This PIN has reached its maximum usage limit (5 times). Please obtain a new PIN.");
+              setIsAuthenticating(false);
+              return;
+          }
+
+          // Validation Passed
+          // Update PIN usage
+          const updatedPins = pins.map(p => p.code === pin.code ? { ...p, usageCount: p.usageCount + 1, isUsed: true, assignedStudentId: student.id } : p);
+          setPins(updatedPins);
+          
+          // Create a session user for the student
+          const studentUser: User = {
+              id: student.id,
+              name: student.name,
+              email: `${student.id}@student.school`, // Dummy email
+              role: UserRole.STUDENT,
+              isActive: true,
+              assignedClassIds: [],
+              assignedSubjectIds: []
+          };
+          
+          handleAuthSuccess(studentUser);
+          setIsAuthenticating(false);
+      }, 1000);
+  };
+
+  const handleLogout = () => {
+     if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
+     setUser(null);
+     setView('login');
+     setSelectedClassId(null);
+     setSelectedSubjectId(null);
+  };
+
+  const handleSaveResult = (newResult: Result) => {
+    setResults(prev => {
+        const idx = prev.findIndex(r => r.id === newResult.id);
+        if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = newResult;
+            return updated;
+        }
+        return [...prev, newResult];
+    });
+    addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
+  };
+
+  const handleSaveAttendance = (newRecords: Attendance[]) => {
+      // Remove existing records for same date/class to avoid duplicates (naive approach)
+      const filtered = attendance.filter(a => !(a.classId === newRecords[0].classId && a.date === newRecords[0].date));
+      setAttendance([...filtered, ...newRecords]);
+      addLog(user?.id || 'sys', user?.role || UserRole.FORM_MASTER, 'MARK_ATTENDANCE', `Marked attendance for ${newRecords.length} students`);
+      alert("Attendance Saved!");
+  };
+
+  const handleFormMasterViewAccess = () => {
+     if (user?.role === UserRole.FORM_MASTER) {
+         if (formMasterViewCount >= 2) {
+             alert("Access Denied: You have exceeded the limit (2) for viewing the Broadsheet/Result Printing.");
+             return false;
+         }
+         setFormMasterViewCount(prev => prev + 1);
+         // Alert to inform user of remaining usage
+         alert(`Access Granted. You have used ${formMasterViewCount + 1}/2 accesses for this session.`);
+     }
+     return true;
+  };
+
+  const handleViewChange = (newView: string) => {
+      // Check limits if accessing Printing or Approvals/Broadsheet
+      if ((newView === 'approvals' || newView === 'print_results') && user?.role === UserRole.FORM_MASTER) {
+          if(!handleFormMasterViewAccess()) return;
+      }
+      setView(newView);
+  };
+
+  const generatePinCode = () => {
+      // Generate ####-####-####
+      const p = () => Math.floor(1000 + Math.random() * 9000);
+      return `${p()}-${p()}-${p()}`;
+  };
+
+  // --- Views ---
+  
   const DashboardView = () => (
     <div className="space-y-8">
         <div>
@@ -404,8 +481,6 @@ const App: React.FC = () => {
         if (selectedClassId) {
             const selectedClass = classes.find(c => c.id === selectedClassId);
             if (selectedClass) {
-                // Heuristic: Check if subject has compatible levels. 
-                // Matches "JSS 1" from "JSS 1" in "JSS 1 A"
                 const classLevel = selectedClass.name; 
                 visibleSubjects = visibleSubjects.filter(s => 
                     !s.compatibleLevels || s.compatibleLevels.length === 0 || s.compatibleLevels.includes(classLevel)
@@ -500,12 +575,11 @@ const App: React.FC = () => {
 
   const AttendanceView = () => {
      // Form Master View for their class
-     const myClassId = user?.assignedClassIds?.[0]; // Assuming 1 class for simplicity
+     const myClassId = user?.assignedClassIds?.[0]; 
      const myClass = classes.find(c => c.id === myClassId);
      
      if (!myClass && user?.role !== UserRole.ADMIN) return <div>You are not assigned to a class as Form Master.</div>;
      
-     // If admin, select class first
      const targetClass = user?.role === UserRole.ADMIN ? classes[0] : myClass; 
      if (!targetClass) return <div>No classes available.</div>;
 
@@ -524,7 +598,19 @@ const App: React.FC = () => {
 
   // --- Render Switch ---
 
-  if (!user) return <LoginView />;
+  if (!user) {
+    return <LoginScreen 
+        loginTab={loginTab}
+        setLoginTab={setLoginTab}
+        loginCreds={loginCreds}
+        setLoginCreds={setLoginCreds}
+        performStudentCheck={performStudentCheck}
+        performStaffLogin={performStaffLogin}
+        showPassword={showPassword}
+        setShowPassword={setShowPassword}
+        isAuthenticating={isAuthenticating}
+    />;
+  }
 
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={handleViewChange}>
