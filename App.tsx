@@ -41,21 +41,22 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   loginTab, setLoginTab, loginCreds, setLoginCreds, 
   performStudentCheck, performStaffLogin, showPassword, setShowPassword, isAuthenticating
 }) => {
-  const inputClass = "appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 sm:text-sm transition-all";
+  // text-base on mobile prevents iOS zoom, sm:text-sm on desktop
+  const inputClass = "appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 text-base sm:text-sm transition-all";
   
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:px-6 lg:px-8 font-sans">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6 md:mb-8">
             <div className="h-16 w-16 bg-blue-600 text-white flex items-center justify-center rounded-2xl font-black text-2xl font-display mx-auto mb-4 shadow-xl shadow-blue-500/30">JM</div>
-            <h1 className="text-3xl font-black font-display text-slate-900 tracking-tight uppercase">Jere Model Academy</h1>
-            <p className="mt-2 text-slate-500 font-medium">E-Result & School Management Portal</p>
+            <h1 className="text-2xl md:text-3xl font-black font-display text-slate-900 tracking-tight uppercase px-4">Jere Model Academy</h1>
+            <p className="mt-2 text-slate-500 font-medium text-sm md:text-base">E-Result & School Management Portal</p>
         </div>
 
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-            <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/60 sm:rounded-3xl sm:px-10 border border-slate-100">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md w-full px-4">
+            <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/60 rounded-3xl sm:px-10 border border-slate-100">
                 
                 {/* Tabs */}
-                <div className="flex p-1 bg-slate-100 rounded-xl mb-8">
+                <div className="flex p-1 bg-slate-100 rounded-xl mb-6 md:mb-8">
                     <button
                         onClick={() => setLoginTab('RESULT')}
                         className={`flex-1 flex items-center justify-center py-2.5 text-sm font-bold rounded-lg transition-all duration-200 ${
@@ -174,7 +175,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                     </form>
                 )}
             </div>
-            <p className="text-center text-xs font-medium text-slate-400 mt-8">
+            <p className="text-center text-xs font-medium text-slate-400 mt-8 mb-4">
                 &copy; {new Date().getFullYear()} Jere Model Academy
             </p>
         </div>
@@ -254,9 +255,7 @@ const App: React.FC = () => {
       setTimeout(() => {
           const foundUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
           if (foundUser) {
-              // Check custom password if set, otherwise fallback to default 'password'
               const validPassword = foundUser.password || 'password';
-              
               if (loginCreds.password === validPassword) { 
                   handleAuthSuccess(foundUser);
               } else {
@@ -343,20 +342,14 @@ const App: React.FC = () => {
     addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
   };
 
-  // Special handler for remarks from review panels
   const handleSaveReviewRemark = (studentId: string, remark: string) => {
       if (!user) return;
-      
       const role = user.role;
       setResults(prev => {
-          const studentResults = prev.filter(r => r.studentId === studentId && r.session === CURRENT_SESSION && r.term === CURRENT_TERM);
-          
-          // We update ALL results for this student for this term with the general remark
-          // In a real DB, remarks might be on a separate "ReportCard" entity, but here we attach to Results for simplicity
           const updated = prev.map(r => {
               if (r.studentId === studentId && r.session === CURRENT_SESSION && r.term === CURRENT_TERM) {
                   if (role === UserRole.PRINCIPAL) {
-                      return { ...r, principalRemark: remark, isApproved: true, isLocked: true }; // Principal remark implies approval
+                      return { ...r, principalRemark: remark, isApproved: true, isLocked: true };
                   } else if (role === UserRole.FORM_MASTER) {
                       return { ...r, formMasterRemark: remark };
                   }
@@ -417,7 +410,7 @@ const App: React.FC = () => {
         </div>
         
         {user?.role !== UserRole.STUDENT && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { label: 'Total Students', count: students.length, color: 'blue' },
                     { label: 'Results Logged', count: results.length, color: 'emerald' },
@@ -472,12 +465,13 @@ const App: React.FC = () => {
             }
         }
 
-        const selectClass = "w-full p-4 rounded-xl border border-slate-200 bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none font-medium text-slate-700";
+        // text-base prevents zoom on mobile
+        const selectClass = "w-full p-4 rounded-xl border border-slate-200 bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none font-medium text-slate-700 text-base sm:text-sm";
 
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 max-w-xl w-full">
-                    <div className="text-center mb-10">
+                <div className="bg-white p-6 md:p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 max-w-xl w-full mx-4">
+                    <div className="text-center mb-8 md:mb-10">
                         <div className="h-14 w-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                             <AcademicCapIcon className="h-8 w-8" />
                         </div>
@@ -526,23 +520,24 @@ const App: React.FC = () => {
     
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between mb-8 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="h-10 w-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
-                        <ArrowLeftIcon className="h-5 w-5" />
+            {/* Sticky Header for Mobile Context */}
+            <div className="sticky top-0 z-20 bg-white/95 backdrop-blur shadow-sm p-4 -mx-4 md:mx-0 md:rounded-xl md:border md:border-slate-100 flex items-center justify-between transition-all">
+                <div className="flex items-center gap-3 md:gap-4">
+                    <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="h-8 w-8 md:h-10 md:w-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
+                        <ArrowLeftIcon className="h-4 w-4 md:h-5 md:w-5" />
                     </button>
                     <div>
-                        <h2 className="text-xl font-bold font-display text-slate-900">{subjectName}</h2>
-                        <p className="text-slate-500 text-sm font-medium">{classStudents.length} Students Enrolled</p>
+                        <h2 className="text-lg md:text-xl font-bold font-display text-slate-900 truncate max-w-[150px] md:max-w-none">{subjectName}</h2>
+                        <p className="text-slate-500 text-xs md:text-sm font-medium">{classStudents.length} Students</p>
                     </div>
                 </div>
-                <div className="text-right hidden md:block">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Class</p>
-                    <p className="font-bold text-slate-800">{classes.find(c => c.id === selectedClassId)?.name} {classes.find(c => c.id === selectedClassId)?.arm}</p>
+                <div className="text-right">
+                    <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Class</p>
+                    <p className="font-bold text-sm md:text-base text-slate-800">{classes.find(c => c.id === selectedClassId)?.name} {classes.find(c => c.id === selectedClassId)?.arm}</p>
                 </div>
             </div>
             
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-6 pb-20">
                 {classStudents.map(student => {
                     const existing = results.find(r => r.studentId === student.id && r.subjectId === selectedSubjectId);
                     const isReadOnly = user?.role === UserRole.TEACHER && !!existing;

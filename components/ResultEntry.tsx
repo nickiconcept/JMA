@@ -89,7 +89,8 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
     onSave(result);
   };
 
-  const inputClass = "w-full px-3 py-3 rounded-lg border border-slate-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium text-slate-700 disabled:bg-slate-50 disabled:text-slate-400 text-sm";
+  // text-base on mobile prevents iOS zoom, sm:text-sm on desktop
+  const inputClass = "w-full px-3 py-3 rounded-lg border border-slate-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium text-slate-700 disabled:bg-slate-50 disabled:text-slate-400 text-base sm:text-sm";
   const labelClass = "block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5";
 
   return (
