@@ -16,7 +16,8 @@ import {
   ChartPieIcon,
   PrinterIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -110,6 +111,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
           {user.role === UserRole.ADMIN && (
              <>
               <div className="mt-4 mb-2 px-4 text-xs uppercase text-green-400 font-bold tracking-wider">Administration</div>
+              <NavItem view="promotions" icon={ArrowTrendingUpIcon} label="Promotions" />
               <NavItem view="staff_manager" icon={UsersIcon} label="Staff & Users" />
               <NavItem view="students_manager" icon={UserGroupIcon} label="Student Database" />
               <NavItem view="subjects" icon={BookOpenIcon} label="Subjects & Classes" />

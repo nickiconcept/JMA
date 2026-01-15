@@ -14,6 +14,7 @@ import StudentManager from './components/StudentManager';
 import SubjectManager from './components/SubjectManager';
 import ResultApproval from './components/ResultApproval';
 import ResultPrintingManager from './components/ResultPrintingManager';
+import PromotionManager from './components/PromotionManager';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance } from './services/mockData';
@@ -327,9 +328,9 @@ const App: React.FC = () => {
       {view === 'staff_manager' && (
           <StaffManagement 
             users={users} classes={classes} subjects={subjects}
-            onAddUser={(u) => { setUsers([...users, u]); addLog(user.id, user.role, 'ADD_USER', `Added user ${u.name}`); }}
-            onUpdateUser={(u) => { setUsers(users.map(x => x.id === u.id ? u : x)); addLog(user.id, user.role, 'UPDATE_USER', `Updated user ${u.name}`); }}
-            onDeleteUser={(id) => { setUsers(users.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_USER', `Deleted user ${id}`); }}
+            onAddUser={(u) => { setUsers(prev => [...prev, u]); addLog(user.id, user.role, 'ADD_USER', `Added user ${u.name}`); }}
+            onUpdateUser={(u) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); addLog(user.id, user.role, 'UPDATE_USER', `Updated user ${u.name}`); }}
+            onDeleteUser={(id) => { setUsers(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_USER', `Deleted user ${id}`); }}
           />
       )}
 
@@ -352,12 +353,12 @@ const App: React.FC = () => {
                     assignedStudentId: student.id
                 }));
                 
-                setPins([...newPins, ...pins]);
+                setPins(prev => [...newPins, ...prev]);
                 addLog(user.id, user.role, 'GENERATE_PINS', `Generated ${newPins.length} pins for class ${classId}`);
                 alert(`Successfully generated ${newPins.length} pins for ${classStudents.length} students.`);
             }}
             onAssignStudent={(code, studentId) => {
-                setPins(pins.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));
+                setPins(prev => prev.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));
                 addLog(user.id, user.role, 'ASSIGN_PIN', `Assigned PIN ${code} to student ${studentId}`);
             }}
           />
@@ -387,14 +388,35 @@ const App: React.FC = () => {
               subjects={subjects}
           />
       )}
+      
+      {view === 'promotions' && (
+          <PromotionManager
+              students={students}
+              classes={classes}
+              results={results}
+              onPromoteStudents={(updates) => {
+                  setStudents(prev => {
+                      const updatedStudents = [...prev];
+                      updates.forEach(u => {
+                          const idx = updatedStudents.findIndex(s => s.id === u.studentId);
+                          if(idx !== -1) {
+                              updatedStudents[idx] = { ...updatedStudents[idx], classId: u.newClassId, promotionStatus: u.status };
+                          }
+                      });
+                      return updatedStudents;
+                  });
+                  addLog(user.id, user.role, 'BULK_PROMOTION', `Promoted ${updates.length} students`);
+              }}
+          />
+      )}
 
       {view === 'class_manager' && (
            <ClassManager 
                 classes={classes}
                 users={users}
-                onAdd={(c) => { setClasses([...classes, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
-                onUpdate={(c) => { setClasses(classes.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
-                onDelete={(id) => { setClasses(classes.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
+                onAdd={(c) => { setClasses(prev => [...prev, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
+                onUpdate={(c) => { setClasses(prev => prev.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
+                onDelete={(id) => { setClasses(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
                 currentUserRole={user.role}
            />
       )}
@@ -403,18 +425,18 @@ const App: React.FC = () => {
            <StudentManager
                 students={students}
                 classes={classes}
-                onAdd={(s) => { setStudents([...students, s]); addLog(user.id, user.role, 'ADD_STUDENT', `Added student ${s.name}`); }}
-                onUpdate={(s) => { setStudents(students.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_STUDENT', `Updated student ${s.name}`); }}
-                onDelete={(id) => { setStudents(students.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_STUDENT', `Deleted student ${id}`); }}
+                onAdd={(s) => { setStudents(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_STUDENT', `Added student ${s.name}`); }}
+                onUpdate={(s) => { setStudents(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_STUDENT', `Updated student ${s.name}`); }}
+                onDelete={(id) => { setStudents(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_STUDENT', `Deleted student ${id}`); }}
            />
       )}
 
       {view === 'subjects' && (
            <SubjectManager
                 subjects={subjects}
-                onAdd={(s) => { setSubjects([...subjects, s]); addLog(user.id, user.role, 'ADD_SUBJECT', `Added subject ${s.name}`); }}
-                onUpdate={(s) => { setSubjects(subjects.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_SUBJECT', `Updated subject ${s.name}`); }}
-                onDelete={(id) => { setSubjects(subjects.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_SUBJECT', `Deleted subject ${id}`); }}
+                onAdd={(s) => { setSubjects(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_SUBJECT', `Added subject ${s.name}`); }}
+                onUpdate={(s) => { setSubjects(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_SUBJECT', `Updated subject ${s.name}`); }}
+                onDelete={(id) => { setSubjects(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_SUBJECT', `Deleted subject ${id}`); }}
            />
       )}
       
