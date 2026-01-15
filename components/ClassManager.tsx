@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ClassDefinition, User, UserRole } from '../types';
 import Button from './Button';
@@ -8,12 +9,14 @@ interface Props {
   onAdd: (cls: ClassDefinition) => void;
   onUpdate: (cls: ClassDefinition) => void;
   onDelete: (id: string) => void;
+  currentUserRole?: UserRole; // To check permissions
 }
 
-const ClassManager: React.FC<Props> = ({ classes, users, onAdd, onUpdate, onDelete }) => {
+const ClassManager: React.FC<Props> = ({ classes, users, onAdd, onUpdate, onDelete, currentUserRole }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentClass, setCurrentClass] = useState<Partial<ClassDefinition>>({});
 
+  const isAdmin = currentUserRole === UserRole.ADMIN;
   const formMasters = users.filter(u => u.role === UserRole.FORM_MASTER || u.role === UserRole.TEACHER);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,10 +37,10 @@ const ClassManager: React.FC<Props> = ({ classes, users, onAdd, onUpdate, onDele
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Class Management</h2>
-        <Button onClick={() => setIsEditing(true)}>+ Add New Class</Button>
+        {isAdmin && <Button onClick={() => setIsEditing(true)}>+ Add New Class</Button>}
       </div>
 
-      {isEditing && (
+      {isEditing && isAdmin && (
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h3 className="text-lg font-bold mb-4">Add / Edit Class</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -94,6 +97,12 @@ const ClassManager: React.FC<Props> = ({ classes, users, onAdd, onUpdate, onDele
         </div>
       )}
 
+      {!isAdmin && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded text-sm">
+              You have read-only access to class configuration.
+          </div>
+      )}
+
       <div className="bg-white shadow overflow-hidden rounded-md">
         <ul className="divide-y divide-gray-200">
           {classes.map(c => {
@@ -106,10 +115,12 @@ const ClassManager: React.FC<Props> = ({ classes, users, onAdd, onUpdate, onDele
                     Form Master: <span className="font-medium text-green-700">{master ? master.name : 'Not Assigned'}</span>
                   </p>
                 </div>
-                <div className="flex space-x-2">
-                   <button onClick={() => { setCurrentClass(c); setIsEditing(true); }} className="text-blue-600 text-sm hover:underline">Edit</button>
-                   <button onClick={() => onDelete(c.id)} className="text-red-600 text-sm hover:underline">Delete</button>
-                </div>
+                {isAdmin && (
+                  <div className="flex space-x-2">
+                     <button onClick={() => { setCurrentClass(c); setIsEditing(true); }} className="text-blue-600 text-sm hover:underline">Edit</button>
+                     <button onClick={() => onDelete(c.id)} className="text-red-600 text-sm hover:underline">Delete</button>
+                  </div>
+                )}
               </li>
             );
           })}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Result, Assessment, Term, Student } from '../types';
 import { GRADING_SCALE, MAX_SCORES, CURRENT_SESSION, CURRENT_TERM } from '../constants';
@@ -6,13 +7,14 @@ import { generateStudentRemark } from '../services/geminiService';
 
 interface Props {
   student: Student;
-  subject: string; // The name of the subject
-  subjectId: string; // The ID of the subject
+  subject: string;
+  subjectId: string;
   onSave: (result: Result) => void;
   existingResult?: Result;
+  isReadOnly?: boolean; // New prop to enforce role-based locking
 }
 
-const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, existingResult }) => {
+const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, existingResult, isReadOnly = false }) => {
   const [assessment, setAssessment] = useState<Assessment>(
     existingResult?.assessment || { ca1: 0, ca2: 0, assignment: 0, notes: 0, exam: 0 }
   );
@@ -48,6 +50,8 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
   }, [assessment]);
 
   const handleChange = (field: keyof Assessment, value: string) => {
+    if (isReadOnly) return;
+    
     const numValue = Number(value);
     // Validation based on Max scores
     let max = 0;
@@ -63,6 +67,7 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
   };
 
   const handleGenerateRemark = async () => {
+    if (isReadOnly) return;
     setIsGeneratingRemark(true);
     const newRemark = await generateStudentRemark(student.name, subject, total, grade);
     setRemark(newRemark);
@@ -71,6 +76,8 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
+
     const result: Result = {
       id: existingResult?.id || `res-${Date.now()}`,
       studentId: student.id,
@@ -89,7 +96,7 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow border border-gray-200">
+    <form onSubmit={handleSubmit} className={`bg-white p-6 rounded-lg shadow border border-gray-200 ${isReadOnly ? 'opacity-75' : ''}`}>
       <div className="flex justify-between items-center mb-4">
         <div>
            <h4 className="text-lg font-bold text-gray-800">{student.name}</h4>
@@ -103,55 +110,69 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
         </div>
       </div>
 
+      {isReadOnly && (
+        <div className="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded text-sm flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+            </svg>
+            Submitted. Locked for editing. Contact Admin to modify.
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">1st CA (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
             value={assessment.ca1}
             onChange={(e) => handleChange('ca1', e.target.value)}
             required
+            disabled={isReadOnly}
           />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">2nd CA (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
             value={assessment.ca2}
             onChange={(e) => handleChange('ca2', e.target.value)}
             required
+            disabled={isReadOnly}
           />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Assign (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
             value={assessment.assignment}
             onChange={(e) => handleChange('assignment', e.target.value)}
             required
+            disabled={isReadOnly}
           />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Notes (10)</label>
           <input 
             type="number" min="0" max="10" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
             value={assessment.notes}
             onChange={(e) => handleChange('notes', e.target.value)}
             required
+            disabled={isReadOnly}
           />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Exam (60)</label>
           <input 
             type="number" min="0" max="60" 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 bg-green-50"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 bg-green-50 disabled:bg-gray-200"
             value={assessment.exam}
             onChange={(e) => handleChange('exam', e.target.value)}
             required
+            disabled={isReadOnly}
           />
         </div>
       </div>
@@ -162,24 +183,27 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
             <button 
                 type="button" 
                 onClick={handleGenerateRemark}
-                className="text-xs text-purple-600 hover:text-purple-800 flex items-center font-medium"
-                disabled={isGeneratingRemark}
+                className="text-xs text-purple-600 hover:text-purple-800 flex items-center font-medium disabled:opacity-50"
+                disabled={isGeneratingRemark || isReadOnly}
             >
                 {isGeneratingRemark ? 'Thinking...' : '✨ Generate with AI'}
             </button>
         </div>
         <textarea 
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
             rows={2}
             value={remark}
             onChange={(e) => setRemark(e.target.value)}
             placeholder="Enter remark here..."
+            disabled={isReadOnly}
         />
       </div>
 
-      <Button type="submit" className="w-full">
-        Save Result
-      </Button>
+      {!isReadOnly && (
+        <Button type="submit" className="w-full">
+          Save Result
+        </Button>
+      )}
     </form>
   );
 };

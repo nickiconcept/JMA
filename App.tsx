@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Layout from './components/Layout';
 import Button from './components/Button';
@@ -12,6 +13,7 @@ import ClassManager from './components/ClassManager';
 import StudentManager from './components/StudentManager';
 import SubjectManager from './components/SubjectManager';
 import ResultApproval from './components/ResultApproval';
+import ResultPrintingManager from './components/ResultPrintingManager';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance } from './services/mockData';
@@ -37,6 +39,9 @@ const App: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   
+  // --- Feature Logic State ---
+  const [formMasterViewCount, setFormMasterViewCount] = useState<number>(0);
+
   // --- Actions ---
   const handleLogin = (role: UserRole) => {
     let foundUser = mockUsers.find(u => u.role === role);
@@ -50,6 +55,7 @@ const App: React.FC = () => {
       setUser(foundUser);
       setView('dashboard');
       addLog(foundUser.id, foundUser.role, 'LOGIN', 'Login successful');
+      setFormMasterViewCount(0); // Reset view count on login
     }
   };
 
@@ -82,7 +88,6 @@ const App: React.FC = () => {
         return [...prev, newResult];
     });
     addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
-    // Do not alert on every keystroke, assume component handles feedback or manual save
   };
 
   const handleSaveAttendance = (newRecords: Attendance[]) => {
@@ -91,6 +96,27 @@ const App: React.FC = () => {
       setAttendance([...filtered, ...newRecords]);
       addLog(user?.id || 'sys', user?.role || UserRole.FORM_MASTER, 'MARK_ATTENDANCE', `Marked attendance for ${newRecords.length} students`);
       alert("Attendance Saved!");
+  };
+
+  const handleFormMasterViewAccess = () => {
+     if (user?.role === UserRole.FORM_MASTER) {
+         if (formMasterViewCount >= 2) {
+             alert("Access Denied: You have exceeded the limit (2) for viewing the Broadsheet/Result Printing.");
+             return false;
+         }
+         setFormMasterViewCount(prev => prev + 1);
+         // Alert to inform user of remaining usage
+         alert(`Access Granted. You have used ${formMasterViewCount + 1}/2 accesses for this session.`);
+     }
+     return true;
+  };
+
+  const handleViewChange = (newView: string) => {
+      // Check limits if accessing Printing or Approvals/Broadsheet
+      if ((newView === 'approvals' || newView === 'print_results') && user?.role === UserRole.FORM_MASTER) {
+          if(!handleFormMasterViewAccess()) return;
+      }
+      setView(newView);
   };
 
   // --- Views ---
@@ -153,14 +179,28 @@ const App: React.FC = () => {
   const ResultEntryFlow = () => {
     // Phase 1: Selection
     if (!selectedClassId || !selectedSubjectId) {
-        // Filter classes/subjects based on role
+        // Filter classes based on role
         const visibleClasses = user?.role === UserRole.ADMIN || user?.role === UserRole.PRINCIPAL
             ? classes 
             : classes.filter(c => user?.assignedClassIds?.includes(c.id));
         
-        const visibleSubjects = user?.role === UserRole.ADMIN || user?.role === UserRole.PRINCIPAL
+        // Filter subjects based on role
+        let visibleSubjects = user?.role === UserRole.ADMIN || user?.role === UserRole.PRINCIPAL
             ? subjects
             : subjects.filter(s => user?.assignedSubjectIds?.includes(s.id));
+        
+        // Additional Filter: Map subjects to classes option (If class is selected, filter subjects compatible with that class)
+        if (selectedClassId) {
+            const selectedClass = classes.find(c => c.id === selectedClassId);
+            if (selectedClass) {
+                // Heuristic: Check if subject has compatible levels. 
+                // Matches "JSS 1" from "JSS 1" in "JSS 1 A"
+                const classLevel = selectedClass.name; 
+                visibleSubjects = visibleSubjects.filter(s => 
+                    !s.compatibleLevels || s.compatibleLevels.length === 0 || s.compatibleLevels.includes(classLevel)
+                );
+            }
+        }
 
         return (
             <div className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto">
@@ -170,7 +210,7 @@ const App: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
                         <select 
                             className="w-full border p-2 rounded" 
-                            onChange={(e) => setSelectedClassId(e.target.value)}
+                            onChange={(e) => { setSelectedClassId(e.target.value); setSelectedSubjectId(null); }}
                             value={selectedClassId || ''}
                         >
                             <option value="">-- Select Class --</option>
@@ -180,9 +220,10 @@ const App: React.FC = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
                         <select 
-                             className="w-full border p-2 rounded"
+                             className="w-full border p-2 rounded disabled:bg-gray-100"
                              onChange={(e) => setSelectedSubjectId(e.target.value)}
                              value={selectedSubjectId || ''}
+                             disabled={!selectedClassId}
                         >
                             <option value="">-- Select Subject --</option>
                             {visibleSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -216,6 +257,10 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 gap-6">
                 {classStudents.map(student => {
                     const existing = results.find(r => r.studentId === student.id && r.subjectId === selectedSubjectId);
+                    
+                    // Single Submission Logic: If user is teacher and result exists, it's read-only
+                    const isReadOnly = user?.role === UserRole.TEACHER && !!existing;
+
                     return (
                         <div key={student.id} className="border-b pb-4">
                             <ResultEntry 
@@ -223,6 +268,7 @@ const App: React.FC = () => {
                                 subject={subjectName || ''}
                                 subjectId={selectedSubjectId!}
                                 existingResult={existing}
+                                isReadOnly={isReadOnly}
                                 onSave={(r) => {
                                     handleSaveResult(r);
                                     alert('Saved');
@@ -239,7 +285,7 @@ const App: React.FC = () => {
 
   const AttendanceView = () => {
      // Form Master View for their class
-     const myClassId = user?.assignedClassIds?.[0]; // Assuming 1 class for simplicity in this demo logic
+     const myClassId = user?.assignedClassIds?.[0]; // Assuming 1 class for simplicity
      const myClass = classes.find(c => c.id === myClassId);
      
      if (!myClass && user?.role !== UserRole.ADMIN) return <div>You are not assigned to a class as Form Master.</div>;
@@ -256,6 +302,7 @@ const App: React.FC = () => {
             students={classStudents}
             attendanceRecords={attendance}
             onSaveAttendance={handleSaveAttendance}
+            currentUserRole={user?.role}
          />
      );
   };
@@ -265,7 +312,7 @@ const App: React.FC = () => {
   if (!user) return <LoginView />;
 
   return (
-    <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={setView}>
+    <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={handleViewChange}>
       {view === 'dashboard' && <DashboardView />}
       {view === 'results' && <ResultEntryFlow />}
       
@@ -291,6 +338,10 @@ const App: React.FC = () => {
                 setPins([...newPins, ...pins]);
                 addLog(user.id, user.role, 'GENERATE_PINS', `Generated ${amount} pins`);
             }}
+            onAssignStudent={(code, studentId) => {
+                setPins(pins.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));
+                addLog(user.id, user.role, 'ASSIGN_PIN', `Assigned PIN ${code} to student ${studentId}`);
+            }}
           />
       )}
 
@@ -309,7 +360,16 @@ const App: React.FC = () => {
            />
       )}
 
-      {/* Replaced Placeholders with real components */}
+      {view === 'print_results' && (
+          <ResultPrintingManager 
+              user={user}
+              classes={classes}
+              students={students}
+              results={results}
+              subjects={subjects}
+          />
+      )}
+
       {view === 'class_manager' && (
            <ClassManager 
                 classes={classes}
@@ -317,6 +377,7 @@ const App: React.FC = () => {
                 onAdd={(c) => { setClasses([...classes, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
                 onUpdate={(c) => { setClasses(classes.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
                 onDelete={(id) => { setClasses(classes.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
+                currentUserRole={user.role}
            />
       )}
 

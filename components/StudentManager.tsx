@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { Student, ClassDefinition, PromotionStatus } from '../types';
 import Button from './Button';
 
@@ -14,6 +15,7 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
   const [isEditing, setIsEditing] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
   const [filterClass, setFilterClass] = useState<string>('ALL');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +39,41 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
       }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          const csv = event.target?.result as string;
+          const lines = csv.split('\n');
+          // Skip header, assuming Format: Name, ClassID
+          let addedCount = 0;
+          
+          lines.forEach((line, index) => {
+              if (index === 0) return; // Skip header
+              const [name, classId] = line.split(',').map(item => item.trim());
+              
+              if (name && classId) {
+                  // Validate classId
+                  if (classes.some(c => c.id === classId)) {
+                      onAdd({
+                          id: `JMA/24/${Math.floor(Math.random() * 90000) + 10000}`,
+                          name: name,
+                          classId: classId,
+                          promotionStatus: PromotionStatus.PENDING
+                      });
+                      addedCount++;
+                  }
+              }
+          });
+          alert(`Successfully added ${addedCount} students from CSV.`);
+      };
+      reader.readAsText(file);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const filteredStudents = filterClass === 'ALL' 
     ? students 
     : students.filter(s => s.classId === filterClass);
@@ -45,7 +82,7 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Student Database</h2>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 items-center">
             <select 
                 className="border-gray-300 rounded-md shadow-sm border p-2 text-sm"
                 value={filterClass}
@@ -54,8 +91,23 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
                 <option value="ALL">All Classes</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
             </select>
+            
+            <input 
+                type="file" 
+                accept=".csv" 
+                className="hidden" 
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+            />
+            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                📂 Bulk Upload (CSV)
+            </Button>
             <Button onClick={() => setIsEditing(true)}>+ Register Student</Button>
         </div>
+      </div>
+      
+      <div className="text-xs text-gray-500 mb-2">
+          CSV Format: <code>Student Name, ClassID</code> (e.g., "John Doe, JSS1-A")
       </div>
 
       {isEditing && (

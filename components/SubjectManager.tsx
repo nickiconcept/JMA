@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Subject } from '../types';
 import Button from './Button';
@@ -9,9 +10,11 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
+const CLASS_LEVELS = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+
 const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({ isCore: true });
+  const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({ isCore: true, compatibleLevels: [] });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +25,16 @@ const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }
       onAdd({ ...currentSubject, id } as Subject);
     }
     setIsEditing(false);
-    setCurrentSubject({ isCore: true });
+    setCurrentSubject({ isCore: true, compatibleLevels: [] });
+  };
+
+  const toggleLevel = (level: string) => {
+      const current = currentSubject.compatibleLevels || [];
+      if (current.includes(level)) {
+          setCurrentSubject({ ...currentSubject, compatibleLevels: current.filter(l => l !== level) });
+      } else {
+          setCurrentSubject({ ...currentSubject, compatibleLevels: [...current, level] });
+      }
   };
 
   return (
@@ -35,8 +47,8 @@ const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }
       {isEditing && (
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h3 className="text-lg font-bold mb-4">{currentSubject.id ? 'Edit Subject' : 'Add New Subject'}</h3>
-          <form onSubmit={handleSubmit} className="flex gap-4 items-end">
-            <div className="flex-1">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700">Subject Name</label>
               <input 
                 type="text" required
@@ -45,18 +57,38 @@ const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }
                 onChange={e => setCurrentSubject({...currentSubject, name: e.target.value})}
               />
             </div>
-            <div className="mb-3">
-                <label className="flex items-center space-x-2">
-                    <input 
-                        type="checkbox" 
-                        checked={currentSubject.isCore}
-                        onChange={e => setCurrentSubject({...currentSubject, isCore: e.target.checked})}
-                        className="rounded text-green-600 focus:ring-green-500"
-                    />
-                    <span className="text-sm text-gray-700">Core Subject</span>
-                </label>
+            
+            <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Mapped Class Levels (Leave empty for All)</label>
+                <div className="flex flex-wrap gap-2">
+                    {CLASS_LEVELS.map(level => (
+                        <button
+                            key={level}
+                            type="button"
+                            onClick={() => toggleLevel(level)}
+                            className={`px-3 py-1 rounded text-xs font-medium border ${
+                                (currentSubject.compatibleLevels || []).includes(level) 
+                                ? 'bg-green-600 text-white border-green-600'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            {level}
+                        </button>
+                    ))}
+                </div>
             </div>
-            <div className="flex space-x-2">
+
+            <div className="flex items-center space-x-2">
+                <input 
+                    type="checkbox" 
+                    checked={currentSubject.isCore}
+                    onChange={e => setCurrentSubject({...currentSubject, isCore: e.target.checked})}
+                    className="rounded text-green-600 focus:ring-green-500"
+                />
+                <span className="text-sm text-gray-700">Core Subject</span>
+            </div>
+            
+            <div className="flex space-x-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
               <Button type="submit">Save</Button>
             </div>
@@ -69,8 +101,13 @@ const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }
           {subjects.map(s => (
             <li key={s.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
               <div>
-                <span className="text-lg font-medium text-gray-900">{s.name}</span>
-                {s.isCore && <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Core</span>}
+                <div className="flex items-center space-x-2">
+                    <span className="text-lg font-medium text-gray-900">{s.name}</span>
+                    {s.isCore && <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Core</span>}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                    Applicable to: {(!s.compatibleLevels || s.compatibleLevels.length === 0) ? 'All Levels' : s.compatibleLevels.join(', ')}
+                </div>
               </div>
               <div className="flex space-x-2">
                 <button onClick={() => { setCurrentSubject(s); setIsEditing(true); }} className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>

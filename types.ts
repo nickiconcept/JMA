@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   PRINCIPAL = 'PRINCIPAL',
@@ -24,6 +25,7 @@ export interface Subject {
   id: string;
   name: string;
   isCore: boolean;
+  compatibleLevels?: string[]; // e.g. ["JSS 1", "SSS 2"] - If empty, available to all
 }
 
 export interface User {
@@ -106,4 +108,5 @@ export interface Pin {
   generatedBy: string;
   expiryDate: string;
   isUsed: boolean;
+  assignedStudentId?: string; // Optional: Only this student can use this PIN
 }

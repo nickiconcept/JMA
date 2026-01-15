@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Pin } from '../types';
 import Button from './Button';
@@ -5,9 +6,10 @@ import Button from './Button';
 interface Props {
   pins: Pin[];
   onGenerate: (amount: number) => void;
+  onAssignStudent: (pinCode: string, studentId: string) => void; // New callback
 }
 
-const PinManager: React.FC<Props> = ({ pins, onGenerate }) => {
+const PinManager: React.FC<Props> = ({ pins, onGenerate, onAssignStudent }) => {
   const [amount, setAmount] = useState(10);
 
   return (
@@ -39,6 +41,7 @@ const PinManager: React.FC<Props> = ({ pins, onGenerate }) => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PIN Code</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Student</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usage</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiry</th>
               </tr>
@@ -55,6 +58,16 @@ const PinManager: React.FC<Props> = ({ pins, onGenerate }) => {
                     }`}>
                       {pin.usageCount >= pin.maxUsage ? 'Used Up' : 'Active'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                     <input 
+                        type="text"
+                        placeholder="Assign Admission No"
+                        className="border border-gray-300 rounded px-2 py-1 text-xs w-32 focus:ring-green-500 focus:border-green-500"
+                        value={pin.assignedStudentId || ''}
+                        onChange={(e) => onAssignStudent(pin.code, e.target.value)}
+                        disabled={pin.usageCount > 0} // Cannot change if already used
+                     />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {pin.usageCount} / {pin.maxUsage}
