@@ -1,12 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
-import { Student, Assessment } from "../types";
+
+const getApiKey = () => {
+  // Safe check for process.env in various environments
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  // In a real Vercel deployment, env vars should be handled by the build process.
+  // If this is a client-side only demo without build-time replacement:
+  // console.warn("API Key not found in process.env");
+  return ""; 
+};
 
 const createClient = () => {
-  if (!process.env.API_KEY) {
-    console.warn("Gemini API Key is missing!");
+  const apiKey = getApiKey();
+  if (!apiKey) {
     return null;
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey });
 };
 
 export const generateStudentRemark = async (studentName: string, subject: string, score: number, grade: string): Promise<string> => {

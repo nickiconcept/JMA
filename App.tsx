@@ -8,6 +8,10 @@ import StaffManagement from './components/StaffManagement';
 import AttendanceRegister from './components/AttendanceRegister';
 import PinManager from './components/PinManager';
 import Insights from './components/Insights';
+import ClassManager from './components/ClassManager';
+import StudentManager from './components/StudentManager';
+import SubjectManager from './components/SubjectManager';
+import ResultApproval from './components/ResultApproval';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance } from './services/mockData';
@@ -78,7 +82,7 @@ const App: React.FC = () => {
         return [...prev, newResult];
     });
     addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
-    alert("Result saved!");
+    // Do not alert on every keystroke, assume component handles feedback or manual save
   };
 
   const handleSaveAttendance = (newRecords: Attendance[]) => {
@@ -219,7 +223,10 @@ const App: React.FC = () => {
                                 subject={subjectName || ''}
                                 subjectId={selectedSubjectId!}
                                 existingResult={existing}
-                                onSave={(r) => handleSaveResult(r)}
+                                onSave={(r) => {
+                                    handleSaveResult(r);
+                                    alert('Saved');
+                                }}
                             />
                         </div>
                     );
@@ -292,19 +299,44 @@ const App: React.FC = () => {
       {view === 'audit' && <AuditLogsTable logs={logs} />}
 
       {view === 'approvals' && (
-           <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-xl font-bold mb-4">Pending Approvals</h2>
-                <p className="text-gray-500">Functionality to approve bulk results implemented here.</p>
-           </div>
+           <ResultApproval 
+                user={user}
+                results={results}
+                students={students}
+                classes={classes}
+                subjects={subjects}
+                onUpdateResult={handleSaveResult}
+           />
       )}
 
-      {/* Placeholders for other views requested but similar in structure */}
-      {(view === 'class_manager' || view === 'students_manager' || view === 'subjects') && (
-          <div className="text-center p-10 border-2 border-dashed border-gray-300 rounded text-gray-500">
-             <LockClosedIcon className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-             <h3 className="text-lg font-medium">Module Active in Full Version</h3>
-             <p>Manage {view.replace('_', ' ')} here. (Similar CRUD to Staff Manager)</p>
-          </div>
+      {/* Replaced Placeholders with real components */}
+      {view === 'class_manager' && (
+           <ClassManager 
+                classes={classes}
+                users={users}
+                onAdd={(c) => { setClasses([...classes, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
+                onUpdate={(c) => { setClasses(classes.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
+                onDelete={(id) => { setClasses(classes.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
+           />
+      )}
+
+      {view === 'students_manager' && (
+           <StudentManager
+                students={students}
+                classes={classes}
+                onAdd={(s) => { setStudents([...students, s]); addLog(user.id, user.role, 'ADD_STUDENT', `Added student ${s.name}`); }}
+                onUpdate={(s) => { setStudents(students.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_STUDENT', `Updated student ${s.name}`); }}
+                onDelete={(id) => { setStudents(students.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_STUDENT', `Deleted student ${id}`); }}
+           />
+      )}
+
+      {view === 'subjects' && (
+           <SubjectManager
+                subjects={subjects}
+                onAdd={(s) => { setSubjects([...subjects, s]); addLog(user.id, user.role, 'ADD_SUBJECT', `Added subject ${s.name}`); }}
+                onUpdate={(s) => { setSubjects(subjects.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_SUBJECT', `Updated subject ${s.name}`); }}
+                onDelete={(id) => { setSubjects(subjects.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_SUBJECT', `Deleted subject ${id}`); }}
+           />
       )}
       
       {view === 'my_result' && (
