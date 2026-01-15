@@ -78,6 +78,17 @@ const StaffManagement: React.FC<Props> = ({ users, classes, subjects, onAddUser,
                   onChange={e => setCurrentUser({...currentUser, email: e.target.value})}
                 />
               </div>
+               <div>
+                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <input 
+                  type="text" 
+                  placeholder={currentUser.id ? "Leave empty to keep current" : "Create password"}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2"
+                  value={currentUser.password || ''}
+                  onChange={e => setCurrentUser({...currentUser, password: e.target.value})}
+                  required={!currentUser.id} // Required only on creation
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Role</label>
                 <select 

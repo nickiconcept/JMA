@@ -33,6 +33,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  password?: string; // Added for custom login
   passwordHash?: string;
   isActive: boolean;
   signatureUrl?: string; // Added for signatures

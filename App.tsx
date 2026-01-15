@@ -169,7 +169,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
                                 <div><span className="font-bold block">Admin</span>admin@jere.edu.ng</div>
                                 <div><span className="font-bold block">Teacher</span>adewale@jere.edu.ng</div>
                              </div>
-                             <p className="mt-2 pt-2 border-t border-blue-200/50 font-mono">Pass: <b>password</b></p>
+                             <p className="mt-2 pt-2 border-t border-blue-200/50 font-mono">Default Pass: <b>password</b></p>
                         </div>
                     </form>
                 )}
@@ -254,11 +254,14 @@ const App: React.FC = () => {
       setTimeout(() => {
           const foundUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
           if (foundUser) {
-              if (loginCreds.password === 'password') { 
+              // Check custom password if set, otherwise fallback to default 'password'
+              const validPassword = foundUser.password || 'password';
+              
+              if (loginCreds.password === validPassword) { 
                   handleAuthSuccess(foundUser);
               } else {
                   addLog('system', 'ANONYMOUS', 'LOGIN_FAILED', `Failed login: Invalid password for ${emailInput}`);
-                  alert("Invalid Password. (Hint: Use 'password')");
+                  alert("Invalid Password.");
               }
           } else {
               addLog('system', 'ANONYMOUS', 'LOGIN_FAILED', `Failed login: User not found ${emailInput}`);
