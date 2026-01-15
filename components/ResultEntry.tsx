@@ -18,8 +18,19 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
   );
   const [total, setTotal] = useState(0);
   const [grade, setGrade] = useState('');
-  const [remark, setRemark] = useState('');
+  const [remark, setRemark] = useState(existingResult?.teacherRemark || '');
   const [isGeneratingRemark, setIsGeneratingRemark] = useState(false);
+
+  // Sync state when existingResult or student changes
+  useEffect(() => {
+    if (existingResult) {
+      setAssessment(existingResult.assessment);
+      setRemark(existingResult.teacherRemark || '');
+    } else {
+      setAssessment({ ca1: 0, ca2: 0, assignment: 0, notes: 0, exam: 0 });
+      setRemark('');
+    }
+  }, [existingResult, student.id, subjectId]);
 
   // Recalculate Total and Grade whenever assessment changes
   useEffect(() => {

@@ -1,13 +1,21 @@
 import { GoogleGenAI } from "@google/genai";
 
 const getApiKey = () => {
-  // Safe check for process.env in various environments
-  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-    return process.env.API_KEY;
+  // Support Vite
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_KEY;
   }
-  // In a real Vercel deployment, env vars should be handled by the build process.
-  // If this is a client-side only demo without build-time replacement:
-  // console.warn("API Key not found in process.env");
+  
+  // Support Standard Node / CRA / Next.js
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.API_KEY) return process.env.API_KEY;
+    if (process.env.NEXT_PUBLIC_API_KEY) return process.env.NEXT_PUBLIC_API_KEY;
+    if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
+  }
+
+  // console.warn("API Key not found in environment variables");
   return ""; 
 };
 
