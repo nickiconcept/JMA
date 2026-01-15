@@ -87,7 +87,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-6 space-y-1">
+        <div className="flex-1 overflow-y-auto py-6 space-y-1 scroll-container">
           <NavItem view="dashboard" icon={HomeIcon} label="Overview" />
 
           {/* Teacher & Form Master & Admin - Result Entry */}
@@ -160,22 +160,22 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden w-full relative">
+      <div className="flex-1 flex flex-col h-full w-full relative">
         {/* Mobile Header */}
         <header className="md:hidden bg-white/80 backdrop-blur-md text-slate-800 p-4 flex justify-between items-center shadow-sm z-30 sticky top-0 border-b border-slate-200">
            <div className="flex items-center space-x-3">
              <button onClick={() => setIsSidebarOpen(true)} className="text-slate-600 hover:text-blue-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
                <Bars3Icon className="h-6 w-6" />
              </button>
-             <h1 className="text-lg font-bold font-display text-slate-800 truncate">{SCHOOL_NAME}</h1>
+             <h1 className="text-lg font-bold font-display text-slate-800 truncate max-w-[200px]">{SCHOOL_NAME}</h1>
            </div>
            <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
               {user.name.charAt(0)}
            </div>
         </header>
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-4 md:p-8 w-full scroll-smooth">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-4 md:p-8 w-full scroll-smooth scroll-container">
+          <div className="max-w-7xl mx-auto space-y-6 pb-10">
             {children}
           </div>
         </main>

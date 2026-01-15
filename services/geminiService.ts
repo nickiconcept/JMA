@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 const getApiKey = () => {
@@ -15,7 +16,6 @@ const getApiKey = () => {
     if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
   }
 
-  // console.warn("API Key not found in environment variables");
   return ""; 
 };
 
@@ -27,32 +27,39 @@ const createClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-export const generateStudentRemark = async (studentName: string, subject: string, score: number, grade: string): Promise<string> => {
+export const generateGeneralRemark = async (
+  studentName: string, 
+  role: 'PRINCIPAL' | 'FORM_MASTER', 
+  average: number, 
+  totalScore: number
+): Promise<string> => {
   const ai = createClient();
-  if (!ai) return "Excellent performance. Keep it up.";
+  if (!ai) return "Outstanding performance. Keep it up.";
 
   try {
+    const roleTitle = role === 'PRINCIPAL' ? 'Principal' : 'Form Master';
+    const performanceContext = average >= 70 ? "Excellent" : average >= 50 ? "Good" : "Needs Improvement";
+
     const prompt = `
-      You are a Teacher at a Nigerian Secondary School called Jere Model Academy.
-      Write a short, professional, and encouraging 1-sentence remark for a student's report card.
+      You are the ${roleTitle} at Jere Model Academy.
+      Write a short, professional, and specific 1-2 sentence general remark for a student's report card.
       
       Student: ${studentName}
-      Subject: ${subject}
-      Total Score: ${score}/100
-      Grade: ${grade}
+      Term Average: ${average}%
+      Performance Category: ${performanceContext}
       
-      The remark should be suitable for a formal school report. Avoid slang.
+      The remark should be encouraging but honest based on the score. Avoid slang. Do not include the score in the text, just the sentiment.
     `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
-        maxOutputTokens: 50,
+        maxOutputTokens: 60,
       }
     });
 
-    return response.text?.trim() || "Good effort shown.";
+    return response.text?.trim() || "A good result overall.";
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "Result noted.";
