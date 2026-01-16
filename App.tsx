@@ -262,6 +262,8 @@ const App: React.FC = () => {
   const [pins, setPins] = useState<Pin[]>(() => loadFromStorage('jma_pins', mockPins));
   const [schoolConfig, setSchoolConfig] = useState<SchoolConfig>(() => loadFromStorage('jma_config', mockSchoolConfig));
   const [psychomotor, setPsychomotor] = useState<PsychomotorRecord[]>(() => loadFromStorage('jma_psychomotor', mockPsychomotor));
+  // Record map: "userId_studentId": count
+  const [viewLogs, setViewLogs] = useState<Record<string, number>>(() => loadFromStorage('jma_view_logs', {}));
 
   useEffect(() => localStorage.setItem('jma_users', JSON.stringify(users)), [users]);
   useEffect(() => localStorage.setItem('jma_students', JSON.stringify(students)), [students]);
@@ -273,6 +275,7 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('jma_pins', JSON.stringify(pins)), [pins]);
   useEffect(() => localStorage.setItem('jma_config', JSON.stringify(schoolConfig)), [schoolConfig]);
   useEffect(() => localStorage.setItem('jma_psychomotor', JSON.stringify(psychomotor)), [psychomotor]);
+  useEffect(() => localStorage.setItem('jma_view_logs', JSON.stringify(viewLogs)), [viewLogs]);
 
   const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
   const [loginCreds, setLoginCreds] = useState({ email: '', password: '', admissionNo: '', pin: '' });
@@ -399,14 +402,21 @@ const App: React.FC = () => {
   };
 
   const handleSaveResult = (newResult: Result) => {
+    // LOCKING LOGIC: If user is NOT Admin, force lock true on every save
+    const isAdmin = user?.role === UserRole.ADMIN;
+    const resultToSave = { 
+        ...newResult, 
+        isLocked: isAdmin ? newResult.isLocked : true // Force lock for non-admins
+    };
+
     setResults(prev => {
-        const idx = prev.findIndex(r => r.id === newResult.id);
+        const idx = prev.findIndex(r => r.id === resultToSave.id);
         if (idx >= 0) {
             const updated = [...prev];
-            updated[idx] = newResult;
+            updated[idx] = resultToSave;
             return updated;
         }
-        return [...prev, newResult];
+        return [...prev, resultToSave];
     });
     addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
   };
@@ -437,6 +447,22 @@ const App: React.FC = () => {
       setAttendance([...filtered, ...newRecords]);
       addLog(user?.id || 'sys', user?.role || UserRole.FORM_MASTER, 'MARK_ATTENDANCE', `Marked attendance for ${newRecords.length} students`);
       alert("Attendance Saved!");
+  };
+
+  const handleCheckViewLimit = (studentId: string) => {
+      if (!user) return false;
+      if (user.role === UserRole.ADMIN || user.role === UserRole.PRINCIPAL) return true; // No limit for admin/principal
+
+      const key = `${user.id}_${studentId}`;
+      const currentCount = viewLogs[key] || 0;
+
+      if (currentCount >= 2) {
+          return false;
+      }
+
+      // Increment count
+      setViewLogs(prev => ({ ...prev, [key]: currentCount + 1 }));
+      return true;
   };
 
   const handleFormMasterViewAccess = () => {
@@ -471,13 +497,17 @@ const App: React.FC = () => {
       </button>
   );
   
-  const DashboardView = () => (
+  const DashboardView = () => {
+    // Add strict guard clause to satisfy TypeScript
+    if (!user) return null;
+
+    return (
     <div className="space-y-8">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between">
             <div>
-                <h2 className="text-3xl font-bold font-display text-slate-900">Welcome back, {user?.name.split(' ')[0]}</h2>
+                <h2 className="text-3xl font-bold font-display text-slate-900">Welcome back, {user.name.split(' ')[0]}</h2>
                 <p className="text-slate-500 mt-1 font-medium">
-                    {user?.role === UserRole.STUDENT 
+                    {user.role === UserRole.STUDENT 
                     ? 'View your latest academic performance reports.' 
                     : 'Manage school operations, results, and student data.'}
                 </p>
@@ -486,7 +516,7 @@ const App: React.FC = () => {
                 <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-bold text-sm">
                     Active: {schoolConfig.activeSession} - {schoolConfig.activeTerm}
                 </div>
-                {user?.role !== UserRole.STUDENT && (
+                {user.role !== UserRole.STUDENT && (
                     <Button variant="outline" onClick={() => setView('change_password')} className="text-xs py-1.5 px-3">
                         Change Password
                     </Button>
@@ -494,14 +524,14 @@ const App: React.FC = () => {
             </div>
         </div>
         
-        {user?.role !== UserRole.STUDENT && (
+        {user.role !== UserRole.STUDENT && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { 
                         label: 'Total Students', 
                         count: students.length, 
                         color: 'blue',
-                        view: user!.role === UserRole.ADMIN ? 'students_manager' : undefined
+                        view: user.role === UserRole.ADMIN ? 'students_manager' : undefined
                     },
                     { 
                         label: 'Results Logged', 
@@ -513,13 +543,13 @@ const App: React.FC = () => {
                         label: 'Active Staff', 
                         count: users.filter(u => u.role !== UserRole.STUDENT).length, 
                         color: 'purple',
-                        view: user!.role === UserRole.ADMIN ? 'staff_manager' : undefined
+                        view: user.role === UserRole.ADMIN ? 'staff_manager' : undefined
                     },
                     { 
                         label: 'Classes', 
                         count: classes.length, 
                         color: 'amber',
-                        view: user!.role === UserRole.ADMIN ? 'class_manager' : (user!.role === UserRole.FORM_MASTER ? 'class_manager' : undefined)
+                        view: user.role === UserRole.ADMIN ? 'class_manager' : (user.role === UserRole.FORM_MASTER ? 'class_manager' : undefined)
                     },
                 ].map((item, idx) => (
                     <div 
@@ -547,14 +577,14 @@ const App: React.FC = () => {
             </div>
         )}
         
-        {user?.role === UserRole.ADMIN && (
+        {user.role === UserRole.ADMIN && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h3 className="text-lg font-bold text-slate-900 mb-6 font-display">Recent System Activity</h3>
                 <AuditLogsTable logs={logs.slice(0, 5)} />
             </div>
         )}
 
-        {user?.role === UserRole.STUDENT && (
+        {user.role === UserRole.STUDENT && (
              <div className="bg-blue-600 text-white p-8 rounded-2xl shadow-lg shadow-blue-500/20">
                  <h3 className="text-2xl font-bold font-display mb-2">My Student Portal</h3>
                  <p className="text-blue-100 mb-6 max-w-lg">Access your complete academic history and download your termly report cards instantly.</p>
@@ -562,7 +592,8 @@ const App: React.FC = () => {
              </div>
         )}
     </div>
-  );
+    );
+  };
 
   const ResultEntryFlow = () => {
     // Logic for Admin to switch contexts
@@ -688,9 +719,24 @@ const App: React.FC = () => {
                 {classStudents.map(student => {
                     const existing = results.find(r => r.studentId === student.id && r.subjectId === selectedSubjectId && r.session === currentSession && r.term === currentTerm);
                     
-                    // Logic: Teachers cannot edit approved/locked results, or past results if strict mode
-                    const isReadOnly = (user?.role === UserRole.TEACHER && (!!existing && existing.isLocked)) || 
-                                       (isRestricted && (currentSession !== schoolConfig.activeSession || currentTerm !== schoolConfig.activeTerm));
+                    // STRICT LOCKING LOGIC:
+                    // 1. If user is Admin, never read-only (unless business logic changes)
+                    // 2. If user is NOT Admin, AND result exists, it's read-only (submit once rule)
+                    // 3. If restricted mode (wrong session/term), read-only
+                    
+                    let isReadOnly = false;
+
+                    if (user?.role === UserRole.ADMIN) {
+                        isReadOnly = false;
+                    } else {
+                        // For non-admins
+                        if (existing) {
+                            isReadOnly = true; // Submit once rule: if exists, locked.
+                        }
+                        if (isRestricted && (currentSession !== schoolConfig.activeSession || currentTerm !== schoolConfig.activeTerm)) {
+                            isReadOnly = true;
+                        }
+                    }
 
                     return (
                         <div key={student.id}>
@@ -704,7 +750,7 @@ const App: React.FC = () => {
                                 isReadOnly={isReadOnly}
                                 onSave={(r) => {
                                     handleSaveResult(r);
-                                    alert('Saved');
+                                    alert('Saved Successfully! Result is now locked.');
                                 }}
                             />
                         </div>
@@ -892,6 +938,8 @@ const App: React.FC = () => {
                     subjects={subjects}
                     schoolConfig={schoolConfig}
                     psychomotorRecords={psychomotor}
+                    onViewStudentResult={handleCheckViewLimit}
+                    viewCounts={viewLogs}
                />
            </div>
       )}

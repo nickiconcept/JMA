@@ -19,11 +19,14 @@ interface Props {
   subjects?: Subject[];
   schoolConfig?: SchoolConfig;
   psychomotorRecords?: PsychomotorRecord[];
+  onViewStudentResult?: (studentId: string) => boolean; // Function to check/increment limit
+  viewCounts?: Record<string, number>; // Map of studentId -> count
 }
 
 const ClassManager: React.FC<Props> = ({ 
     classes, users, onAdd, onUpdate, onDelete, currentUser,
-    students = [], results = [], subjects = [], schoolConfig, psychomotorRecords = []
+    students = [], results = [], subjects = [], schoolConfig, psychomotorRecords = [],
+    onViewStudentResult, viewCounts = {}
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentClass, setCurrentClass] = useState<Partial<ClassDefinition>>({});
@@ -45,6 +48,17 @@ const ClassManager: React.FC<Props> = ({
     }
     setIsEditing(false);
     setCurrentClass({});
+  };
+
+  const attemptViewResult = (studentId: string) => {
+      if (!onViewStudentResult) return;
+      
+      const canView = onViewStudentResult(studentId);
+      if (canView) {
+          setViewingStudentId(studentId);
+      } else {
+          alert("View Limit Reached: You have already viewed this student's result 2 times. Contact Admin for assistance.");
+      }
   };
 
   // --- Form Master Logic ---
@@ -93,6 +107,9 @@ const ClassManager: React.FC<Props> = ({
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                   <h2 className="text-2xl font-bold text-gray-800">My Class: {myClass.name} {myClass.arm}</h2>
                   <p className="text-slate-500 text-sm mt-1">Manage and view students in your designated class.</p>
+                  <p className="text-xs text-orange-600 mt-2 font-bold bg-orange-50 inline-block px-2 py-1 rounded border border-orange-100">
+                      Note: You can only view each student's detailed result 2 times.
+                  </p>
               </div>
 
               <div className="bg-white shadow overflow-hidden rounded-xl border border-slate-200">
@@ -102,11 +119,15 @@ const ClassManager: React.FC<Props> = ({
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No</th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Views Used</th>
                               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                           </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                          {myStudents.map((s) => (
+                          {myStudents.map((s) => {
+                              const key = `${currentUser?.id}_${s.id}`;
+                              const views = viewCounts[key] || 0;
+                              return (
                               <tr key={s.id} className="hover:bg-slate-50">
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">{s.id}</td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{s.name}</td>
@@ -115,19 +136,25 @@ const ClassManager: React.FC<Props> = ({
                                           {s.promotionStatus}
                                       </span>
                                   </td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-center">
+                                      <span className={`px-2 py-0.5 text-xs font-bold rounded ${views >= 2 ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+                                          {views} / 2
+                                      </span>
+                                  </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                       <button 
-                                          onClick={() => setViewingStudentId(s.id)}
-                                          className="text-blue-600 hover:text-blue-900 flex items-center justify-end gap-1 ml-auto"
+                                          onClick={() => attemptViewResult(s.id)}
+                                          disabled={views >= 2}
+                                          className={`flex items-center justify-end gap-1 ml-auto ${views >= 2 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-900'}`}
                                       >
                                           <EyeIcon className="h-4 w-4" /> View Result
                                       </button>
                                   </td>
                               </tr>
-                          ))}
+                          )})}
                           {myStudents.length === 0 && (
                               <tr>
-                                  <td colSpan={4} className="px-6 py-10 text-center text-slate-500">No students found in this class.</td>
+                                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">No students found in this class.</td>
                               </tr>
                           )}
                       </tbody>
