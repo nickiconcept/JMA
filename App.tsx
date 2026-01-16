@@ -519,7 +519,7 @@ const App: React.FC = () => {
                         label: 'Classes', 
                         count: classes.length, 
                         color: 'amber',
-                        view: user.role === UserRole.ADMIN ? 'class_manager' : undefined
+                        view: user.role === UserRole.ADMIN ? 'class_manager' : (user.role === UserRole.FORM_MASTER ? 'class_manager' : undefined)
                     },
                 ].map((item, idx) => (
                     <div 
