@@ -501,7 +501,7 @@ const App: React.FC = () => {
                         label: 'Total Students', 
                         count: students.length, 
                         color: 'blue',
-                        view: user.role === UserRole.ADMIN ? 'students_manager' : undefined
+                        view: user!.role === UserRole.ADMIN ? 'students_manager' : undefined
                     },
                     { 
                         label: 'Results Logged', 
@@ -513,13 +513,13 @@ const App: React.FC = () => {
                         label: 'Active Staff', 
                         count: users.filter(u => u.role !== UserRole.STUDENT).length, 
                         color: 'purple',
-                        view: user.role === UserRole.ADMIN ? 'staff_manager' : undefined
+                        view: user!.role === UserRole.ADMIN ? 'staff_manager' : undefined
                     },
                     { 
                         label: 'Classes', 
                         count: classes.length, 
                         color: 'amber',
-                        view: user.role === UserRole.ADMIN ? 'class_manager' : (user.role === UserRole.FORM_MASTER ? 'class_manager' : undefined)
+                        view: user!.role === UserRole.ADMIN ? 'class_manager' : (user!.role === UserRole.FORM_MASTER ? 'class_manager' : undefined)
                     },
                 ].map((item, idx) => (
                     <div 
@@ -766,7 +766,7 @@ const App: React.FC = () => {
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={handleViewChange}>
       {view === 'dashboard' && <DashboardView />}
-      {view === 'change_password' && <ChangePasswordView user={user} onCancel={() => setView('dashboard')} onChangePassword={handleChangePassword} />}
+      {view === 'change_password' && <ChangePasswordView user={user!} onCancel={() => setView('dashboard')} onChangePassword={handleChangePassword} />}
       {view === 'results' && <ResultEntryFlow />}
       
       {view === 'attendance' && <AttendanceView />}
@@ -776,9 +776,9 @@ const App: React.FC = () => {
               <BackButton />
               <StaffManagement 
                 users={users} classes={classes} subjects={subjects}
-                onAddUser={(u) => { setUsers(prev => [...prev, u]); addLog(user.id, user.role, 'ADD_USER', `Added user ${u.name}`); }}
-                onUpdateUser={(u) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); addLog(user.id, user.role, 'UPDATE_USER', `Updated user ${u.name}`); }}
-                onDeleteUser={(id) => { setUsers(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_USER', `Deleted user ${id}`); }}
+                onAddUser={(u) => { setUsers(prev => [...prev, u]); addLog(user!.id, user!.role, 'ADD_USER', `Added user ${u.name}`); }}
+                onUpdateUser={(u) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); addLog(user!.id, user!.role, 'UPDATE_USER', `Updated user ${u.name}`); }}
+                onDeleteUser={(id) => { setUsers(prev => prev.filter(x => x.id !== id)); addLog(user!.id, user!.role, 'DELETE_USER', `Deleted user ${id}`); }}
               />
           </div>
       )}
@@ -797,18 +797,18 @@ const App: React.FC = () => {
                         code: generatePinCode(),
                         usageCount: 0,
                         maxUsage: 5,
-                        generatedBy: user.id,
+                        generatedBy: user!.id,
                         expiryDate: '2025-12-31',
                         isUsed: false,
                         assignedStudentId: student.id
                     }));
                     setPins(prev => [...newPins, ...prev]);
-                    addLog(user.id, user.role, 'GENERATE_PINS', `Generated ${newPins.length} pins for class ${classId}`);
+                    addLog(user!.id, user!.role, 'GENERATE_PINS', `Generated ${newPins.length} pins for class ${classId}`);
                     alert(`Successfully generated ${newPins.length} pins for ${classStudents.length} students.`);
                 }}
                 onAssignStudent={(code, studentId) => {
                     setPins(prev => prev.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));
-                    addLog(user.id, user.role, 'ASSIGN_PIN', `Assigned PIN ${code} to student ${studentId}`);
+                    addLog(user!.id, user!.role, 'ASSIGN_PIN', `Assigned PIN ${code} to student ${studentId}`);
                 }}
               />
           </div>
@@ -830,7 +830,7 @@ const App: React.FC = () => {
            <div className="space-y-4">
                 <BackButton />
                 <ResultApproval 
-                        user={user}
+                        user={user!}
                         results={results}
                         students={students}
                         classes={classes}
@@ -843,7 +843,7 @@ const App: React.FC = () => {
           <div className="space-y-4">
                 <BackButton />
                 <ResultPrintingManager 
-                    user={user}
+                    user={user!}
                     classes={classes}
                     students={students}
                     results={results}
@@ -872,7 +872,7 @@ const App: React.FC = () => {
                         });
                         return updatedStudents;
                     });
-                    addLog(user.id, user.role, 'BULK_PROMOTION', `Promoted ${updates.length} students`);
+                    addLog(user!.id, user!.role, 'BULK_PROMOTION', `Promoted ${updates.length} students`);
                 }}
               />
           </div>
@@ -883,10 +883,10 @@ const App: React.FC = () => {
                <ClassManager 
                     classes={classes}
                     users={users}
-                    onAdd={(c) => { setClasses(prev => [...prev, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
-                    onUpdate={(c) => { setClasses(prev => prev.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
-                    onDelete={(id) => { setClasses(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
-                    currentUser={user}
+                    onAdd={(c) => { setClasses(prev => [...prev, c]); addLog(user!.id, user!.role, 'ADD_CLASS', `Added class ${c.name}`); }}
+                    onUpdate={(c) => { setClasses(prev => prev.map(x => x.id === c.id ? c : x)); addLog(user!.id, user!.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
+                    onDelete={(id) => { setClasses(prev => prev.filter(x => x.id !== id)); addLog(user!.id, user!.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
+                    currentUser={user || undefined}
                     students={students}
                     results={results}
                     subjects={subjects}
@@ -901,9 +901,9 @@ const App: React.FC = () => {
                <StudentManager
                     students={students}
                     classes={classes}
-                    onAdd={(s) => { setStudents(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_STUDENT', `Added student ${s.name}`); }}
-                    onUpdate={(s) => { setStudents(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_STUDENT', `Updated student ${s.name}`); }}
-                    onDelete={(id) => { setStudents(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_STUDENT', `Deleted student ${id}`); }}
+                    onAdd={(s) => { setStudents(prev => [...prev, s]); addLog(user!.id, user!.role, 'ADD_STUDENT', `Added student ${s.name}`); }}
+                    onUpdate={(s) => { setStudents(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user!.id, user!.role, 'UPDATE_STUDENT', `Updated student ${s.name}`); }}
+                    onDelete={(id) => { setStudents(prev => prev.filter(x => x.id !== id)); addLog(user!.id, user!.role, 'DELETE_STUDENT', `Deleted student ${id}`); }}
                />
            </div>
       )}
@@ -912,9 +912,9 @@ const App: React.FC = () => {
                <BackButton />
                <SubjectManager
                     subjects={subjects}
-                    onAdd={(s) => { setSubjects(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_SUBJECT', `Added subject ${s.name}`); }}
-                    onUpdate={(s) => { setSubjects(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_SUBJECT', `Updated subject ${s.name}`); }}
-                    onDelete={(id) => { setSubjects(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_SUBJECT', `Deleted subject ${id}`); }}
+                    onAdd={(s) => { setSubjects(prev => [...prev, s]); addLog(user!.id, user!.role, 'ADD_SUBJECT', `Added subject ${s.name}`); }}
+                    onUpdate={(s) => { setSubjects(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user!.id, user!.role, 'UPDATE_SUBJECT', `Updated subject ${s.name}`); }}
+                    onDelete={(id) => { setSubjects(prev => prev.filter(x => x.id !== id)); addLog(user!.id, user!.role, 'DELETE_SUBJECT', `Deleted subject ${id}`); }}
                />
            </div>
       )}
@@ -925,8 +925,8 @@ const App: React.FC = () => {
                 students={students}
                 classes={classes}
                 records={psychomotor}
-                userRole={user.role}
-                assignedClassIds={user.assignedClassIds}
+                userRole={user!.role}
+                assignedClassIds={user!.assignedClassIds}
                 onSave={(record) => {
                 setPsychomotor(prev => {
                     const idx = prev.findIndex(r => r.id === record.id);
@@ -937,7 +937,7 @@ const App: React.FC = () => {
                     }
                     return [...prev, record];
                 });
-                addLog(user.id, user.role, 'UPDATE_PSYCHOMOTOR', `Updated psychomotor for ${record.studentId}`);
+                addLog(user!.id, user!.role, 'UPDATE_PSYCHOMOTOR', `Updated psychomotor for ${record.studentId}`);
                 }}
               />
           </div>
@@ -949,7 +949,7 @@ const App: React.FC = () => {
                 config={schoolConfig}
                 onSave={(cfg) => {
                     setSchoolConfig(cfg);
-                    addLog(user.id, user.role, 'UPDATE_CONFIG', 'Updated portal configuration');
+                    addLog(user!.id, user!.role, 'UPDATE_CONFIG', 'Updated portal configuration');
                     alert("Configuration Saved!");
                 }}
               />
@@ -964,7 +964,7 @@ const App: React.FC = () => {
                 results={results}
                 classes={classes}
                 subjects={subjects}
-                userRole={user.role}
+                userRole={user!.role}
                 onSaveRemark={handleSaveReviewRemark}
               />
           </div>
@@ -978,9 +978,9 @@ const App: React.FC = () => {
                 results={results}
                 classes={classes}
                 subjects={subjects}
-                userRole={user.role}
+                userRole={user!.role}
                 onSaveRemark={handleSaveReviewRemark}
-                assignedClassIds={user.assignedClassIds}
+                assignedClassIds={user!.assignedClassIds}
               />
           </div>
       )}
@@ -988,14 +988,14 @@ const App: React.FC = () => {
         <div className="space-y-4">
             <BackButton />
             <StudentReportCard 
-                student={students.find(s => s.id === user.id)!} 
-                results={results.filter(r => r.studentId === user.id && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)} 
-                allResults={results.filter(r => r.studentId === user.id)}
+                student={students.find(s => s.id === user!.id)!} 
+                results={results.filter(r => r.studentId === user!.id && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)} 
+                allResults={results.filter(r => r.studentId === user!.id)}
                 subjects={subjects}
                 classes={classes}
                 schoolConfig={schoolConfig}
-                psychomotorRecord={psychomotor.find(p => p.studentId === user.id && p.session === schoolConfig.activeSession && p.term === schoolConfig.activeTerm)}
-                formMaster={getFormMasterForClass(students.find(s => s.id === user.id)!.classId)}
+                psychomotorRecord={psychomotor.find(p => p.studentId === user!.id && p.session === schoolConfig.activeSession && p.term === schoolConfig.activeTerm)}
+                formMaster={getFormMasterForClass(students.find(s => s.id === user!.id)!.classId)}
             />
         </div>
       )}
