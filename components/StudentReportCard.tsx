@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { Result, Student, Subject, ClassDefinition, PsychomotorRecord, SchoolConfig, User } from '../types';
+import { Result, Student, Subject, ClassDefinition, PsychomotorRecord, SchoolConfig, User, Term } from '../types';
 import { CURRENT_SESSION, CURRENT_TERM } from '../constants';
 
 interface Props {
@@ -12,11 +12,12 @@ interface Props {
   schoolConfig?: SchoolConfig;
   psychomotorRecord?: PsychomotorRecord;
   formMaster?: User; // Passed in to show specific FM details
+  allResults?: Result[]; // Needed for cumulative calc if not provided in 'results'
 }
 
 const StudentReportCard: React.FC<Props> = ({ 
   student, results, subjects, classes, hidePrintButton = false,
-  schoolConfig, psychomotorRecord, formMaster
+  schoolConfig, psychomotorRecord, formMaster, allResults
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -34,10 +35,24 @@ const StudentReportCard: React.FC<Props> = ({
   const studentClass = classes.find(c => c.id === student.classId);
   const className = studentClass ? `${studentClass.name} ${studentClass.arm}` : student.classId;
   
-  // Aggregate calculations
+  // Aggregate calculations for current term
   const totalScore = results.reduce((acc, curr) => acc + curr.total, 0);
   const average = results.length > 0 ? (totalScore / results.length).toFixed(1) : '0.0';
-  const passedCount = results.filter(r => r.grade !== 'F').length;
+  
+  // Calculate Cumulative Annual Average if it's 3rd Term
+  const isThirdTerm = results[0]?.term === Term.THIRD || schoolConfig?.activeTerm === Term.THIRD;
+  
+  const calculateAnnualAvg = (subjectId: string, currentTotal: number) => {
+      if (!isThirdTerm || !allResults) return null;
+      
+      const session = results[0]?.session;
+      const t1 = allResults.find(r => r.studentId === student.id && r.subjectId === subjectId && r.session === session && r.term === Term.FIRST)?.total || 0;
+      const t2 = allResults.find(r => r.studentId === student.id && r.subjectId === subjectId && r.session === session && r.term === Term.SECOND)?.total || 0;
+      
+      // If previous terms missing, just avg what we have, or strictly divide by 3? 
+      // Strictly dividing by 3 for annual average standard
+      return ((t1 + t2 + currentTotal) / 3).toFixed(1);
+  };
 
   const renderRating = (label: string, score: number) => (
     <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
@@ -60,6 +75,8 @@ const StudentReportCard: React.FC<Props> = ({
       schoolName: "JERE MODEL ACADEMY", 
       address: "Ungwan Shakwera, Kagarko LGA, Kaduna State",
       principalName: "The Principal",
+      activeSession: "2024/2025",
+      activeTerm: Term.FIRST,
       nextTermBegins: "____",
       nextTermEnds: "____",
       reportCardLayout: {
@@ -140,9 +157,9 @@ const StudentReportCard: React.FC<Props> = ({
               <div className="text-right">
                 <div className="bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Session</p>
-                    <p className="text-sm font-bold text-blue-900">{results[0]?.session || CURRENT_SESSION}</p>
+                    <p className="text-sm font-bold text-blue-900">{results[0]?.session || config.activeSession}</p>
                 </div>
-                <p className="text-xs font-medium text-gray-600 mt-1">{results[0]?.term || CURRENT_TERM}</p>
+                <p className="text-xs font-medium text-gray-600 mt-1">{results[0]?.term || config.activeTerm}</p>
               </div>
             </div>
 
@@ -196,6 +213,7 @@ const StudentReportCard: React.FC<Props> = ({
                     <th className="py-2 px-1 text-center bg-gray-50 text-gray-500">Total CA</th>
                     <th className="py-2 px-1 text-center">{labels.examLabel}</th>
                     <th className="py-2 px-2 text-center bg-blue-50 text-blue-800">{labels.totalLabel}</th>
+                    {isThirdTerm && <th className="py-2 px-2 text-center bg-purple-50 text-purple-800">Ann. Avg</th>}
                     <th className="py-2 px-1 text-center">{labels.gradeLabel}</th>
                     <th className="py-2 px-3 text-left w-1/4">{labels.remarkLabel}</th>
                   </tr>
@@ -204,6 +222,7 @@ const StudentReportCard: React.FC<Props> = ({
                   {results.map((res, index) => {
                     const subject = subjects.find(s => s.id === res.subjectId);
                     const caTotal = res.assessment.ca1 + res.assessment.ca2 + res.assessment.assignment + res.assessment.notes;
+                    const annualAvg = calculateAnnualAvg(res.subjectId, res.total);
                     
                     return (
                       <tr key={res.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
@@ -215,6 +234,7 @@ const StudentReportCard: React.FC<Props> = ({
                         <td className="py-2 px-1 text-center font-medium text-gray-700 bg-gray-50/50">{caTotal}</td>
                         <td className="py-2 px-1 text-center font-medium text-gray-700">{res.assessment.exam}</td>
                         <td className="py-2 px-2 text-center font-bold text-blue-900 bg-blue-50/30 text-sm">{res.total}</td>
+                        {isThirdTerm && <td className="py-2 px-2 text-center font-bold text-purple-900 bg-purple-50/30">{annualAvg}</td>}
                         <td className="py-2 px-1 text-center">
                           <span className={`inline-block w-6 text-center py-0.5 rounded text-[10px] font-bold ${
                             res.grade === 'F' ? 'bg-red-100 text-red-700' :

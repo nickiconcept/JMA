@@ -1,25 +1,29 @@
 
 import React, { useState, useEffect } from 'react';
 import { Result, Assessment, Student } from '../types';
-import { GRADING_SCALE, MAX_SCORES, CURRENT_SESSION, CURRENT_TERM } from '../constants';
+import { GRADING_SCALE, MAX_SCORES } from '../constants';
 import Button from './Button';
+import { ExclamationCircleIcon } from '@heroicons/react/24/solid';
 
 interface Props {
   student: Student;
   subject: string;
   subjectId: string;
+  session: string;
+  term: string;
   onSave: (result: Result) => void;
   existingResult?: Result;
   isReadOnly?: boolean; 
 }
 
-const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, existingResult, isReadOnly = false }) => {
+const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, session, term, onSave, existingResult, isReadOnly = false }) => {
   const [assessment, setAssessment] = useState<Assessment>(
     existingResult?.assessment || { ca1: 0, ca2: 0, assignment: 0, notes: 0, exam: 0 }
   );
   const [total, setTotal] = useState(0);
   const [grade, setGrade] = useState('');
   const [remark, setRemark] = useState(existingResult?.teacherRemark || '');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (existingResult) {
@@ -45,7 +49,6 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
     const calculatedGrade = gradeEntry ? gradeEntry.grade : 'F';
     setGrade(calculatedGrade);
 
-    // Auto-generate remark based on grading scale
     if (!isReadOnly && gradeEntry) {
          setRemark(gradeEntry.remark);
     }
@@ -55,16 +58,31 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
   const handleChange = (field: keyof Assessment, value: string) => {
     if (isReadOnly) return;
     
+    // Allow empty string to let user delete
+    if (value === '') {
+        setAssessment(prev => ({ ...prev, [field]: 0 }));
+        return;
+    }
+
     const numValue = Number(value);
     let max = 0;
-    if (field === 'exam') max = MAX_SCORES.EXAM;
-    else if (field === 'ca1') max = MAX_SCORES.CA1;
-    else if (field === 'ca2') max = MAX_SCORES.CA2;
-    else if (field === 'assignment') max = MAX_SCORES.ASSIGNMENT;
-    else if (field === 'notes') max = MAX_SCORES.NOTES;
+    let label = '';
 
-    if (numValue > max) return; 
+    if (field === 'exam') { max = MAX_SCORES.EXAM; label='Exam'; }
+    else if (field === 'ca1') { max = MAX_SCORES.CA1; label='1st CA'; }
+    else if (field === 'ca2') { max = MAX_SCORES.CA2; label='2nd CA'; }
+    else if (field === 'assignment') { max = MAX_SCORES.ASSIGNMENT; label='Assignment'; }
+    else if (field === 'notes') { max = MAX_SCORES.NOTES; label='Notes'; }
 
+    if (numValue > max) {
+        setError(`${label} cannot exceed ${max} marks.`);
+        setTimeout(() => setError(null), 3000);
+        return; // Reject the change
+    }
+
+    if (numValue < 0) return;
+
+    setError(null);
     setAssessment(prev => ({ ...prev, [field]: numValue }));
   };
 
@@ -73,11 +91,11 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
     if (isReadOnly) return;
 
     const result: Result = {
-      id: existingResult?.id || `res-${Date.now()}`,
+      id: existingResult?.id || `res-${Date.now()}-${student.id}`,
       studentId: student.id,
       subjectId: subjectId,
-      session: CURRENT_SESSION,
-      term: CURRENT_TERM,
+      session: session as any,
+      term: term as any,
       assessment,
       total,
       grade,
@@ -89,12 +107,17 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
     onSave(result);
   };
 
-  // text-base on mobile prevents iOS zoom, sm:text-sm on desktop
   const inputClass = "w-full px-3 py-3 rounded-lg border border-slate-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none font-medium text-slate-700 disabled:bg-slate-50 disabled:text-slate-400 text-base sm:text-sm";
   const labelClass = "block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5";
 
   return (
-    <form onSubmit={handleSubmit} className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 ${isReadOnly ? 'opacity-80 grayscale-[0.5]' : ''}`}>
+    <form onSubmit={handleSubmit} className={`bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 ${isReadOnly ? 'opacity-80 grayscale-[0.5]' : ''} relative`}>
+      {error && (
+          <div className="absolute top-2 right-2 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold flex items-center shadow-sm animate-pulse z-10">
+              <ExclamationCircleIcon className="h-4 w-4 mr-1"/> {error}
+          </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between sm:items-start mb-6 gap-4 border-b border-slate-100 pb-4">
         <div>
            <h4 className="text-base font-bold font-display text-slate-800">{student.name}</h4>
@@ -121,56 +144,61 @@ const ResultEntry: React.FC<Props> = ({ student, subject, subjectId, onSave, exi
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
         <div>
-          <label className={labelClass}>1st CA (10)</label>
+          <label className={labelClass}>1st CA (Max 10)</label>
           <input 
             type="number" min="0" max="10" 
             className={inputClass}
-            value={assessment.ca1}
+            value={assessment.ca1 === 0 ? '' : assessment.ca1}
             onChange={(e) => handleChange('ca1', e.target.value)}
+            placeholder="0"
             required disabled={isReadOnly}
             inputMode="numeric"
           />
         </div>
         <div>
-          <label className={labelClass}>2nd CA (10)</label>
+          <label className={labelClass}>2nd CA (Max 10)</label>
           <input 
             type="number" min="0" max="10" 
             className={inputClass}
-            value={assessment.ca2}
+            value={assessment.ca2 === 0 ? '' : assessment.ca2}
             onChange={(e) => handleChange('ca2', e.target.value)}
+            placeholder="0"
             required disabled={isReadOnly}
             inputMode="numeric"
           />
         </div>
         <div>
-          <label className={labelClass}>Assign (10)</label>
+          <label className={labelClass}>Assign (Max 10)</label>
           <input 
             type="number" min="0" max="10" 
             className={inputClass}
-            value={assessment.assignment}
+            value={assessment.assignment === 0 ? '' : assessment.assignment}
             onChange={(e) => handleChange('assignment', e.target.value)}
+            placeholder="0"
             required disabled={isReadOnly}
             inputMode="numeric"
           />
         </div>
         <div>
-          <label className={labelClass}>Notes (10)</label>
+          <label className={labelClass}>Notes (Max 10)</label>
           <input 
             type="number" min="0" max="10" 
             className={inputClass}
-            value={assessment.notes}
+            value={assessment.notes === 0 ? '' : assessment.notes}
             onChange={(e) => handleChange('notes', e.target.value)}
+            placeholder="0"
             required disabled={isReadOnly}
             inputMode="numeric"
           />
         </div>
         <div className="col-span-2 md:col-span-1">
-          <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Exam (60)</label>
+          <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Exam (Max 60)</label>
           <input 
             type="number" min="0" max="60" 
             className={`${inputClass} bg-blue-50/50 border-blue-100 focus:border-blue-500`}
-            value={assessment.exam}
+            value={assessment.exam === 0 ? '' : assessment.exam}
             onChange={(e) => handleChange('exam', e.target.value)}
+            placeholder="0"
             required disabled={isReadOnly}
             inputMode="numeric"
           />

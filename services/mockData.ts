@@ -85,6 +85,8 @@ export const mockSchoolConfig: SchoolConfig = {
   schoolName: SCHOOL_NAME,
   address: "Behind Zara Kabir Filling Station, Ungwan Shakwera, Kagarko LGA, Kaduna State",
   principalName: "Mr. J. Okonkwo",
+  activeSession: CURRENT_SESSION,
+  activeTerm: CURRENT_TERM,
   nextTermBegins: "2025-01-08",
   nextTermEnds: "2025-04-12",
   reportCardLayout: {

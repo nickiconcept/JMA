@@ -1,8 +1,8 @@
 
 import React, { useState, useRef } from 'react';
-import { SchoolConfig } from '../types';
+import { SchoolConfig, Term } from '../types';
 import Button from './Button';
-import { PhotoIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 
 interface Props {
   config: SchoolConfig;
@@ -14,7 +14,7 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -44,11 +44,51 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <h2 className="text-2xl font-bold font-display text-slate-900 mb-2">Report Card Template</h2>
-        <p className="text-slate-500 text-sm mb-6">Configure the headers, dates, and official signatures that appear on student result sheets.</p>
+        <h2 className="text-2xl font-bold font-display text-slate-900 mb-2">School & Term Configuration</h2>
+        <p className="text-slate-500 text-sm mb-6">Manage the active academic session, term, and report card templates.</p>
 
         <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-8">
           
+          {/* Active Session & Term Control */}
+          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+             <div className="flex items-center gap-2 mb-4">
+                 <CalendarDaysIcon className="h-6 w-6 text-blue-600" />
+                 <h3 className="text-lg font-bold text-blue-900">Current Academic Context</h3>
+             </div>
+             <p className="text-sm text-blue-700 mb-4">
+                 Changing these values will "Close" the current term/session. Teachers will only be able to enter results for the Active Session and Term selected here. Previous data will be archived for Admin view only.
+             </p>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                    <label className="block text-sm font-bold text-blue-800 mb-2">Active Session</label>
+                    <select 
+                        name="activeSession" 
+                        value={formData.activeSession} 
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 rounded-xl border border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none bg-white"
+                    >
+                        <option value="2023/2024">2023/2024</option>
+                        <option value="2024/2025">2024/2025</option>
+                        <option value="2025/2026">2025/2026</option>
+                        <option value="2026/2027">2026/2027</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label className="block text-sm font-bold text-blue-800 mb-2">Active Term</label>
+                    <select 
+                        name="activeTerm" 
+                        value={formData.activeTerm} 
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 rounded-xl border border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none bg-white"
+                    >
+                        <option value={Term.FIRST}>{Term.FIRST}</option>
+                        <option value={Term.SECOND}>{Term.SECOND}</option>
+                        <option value={Term.THIRD}>{Term.THIRD}</option>
+                    </select>
+                 </div>
+             </div>
+          </div>
+
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div className="col-span-2">

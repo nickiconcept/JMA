@@ -1,30 +1,11 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 
-const getApiKey = () => {
-  // Support Vite
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
-    // @ts-ignore
-    return import.meta.env.VITE_API_KEY;
-  }
-  
-  // Support Standard Node / CRA / Next.js
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env.API_KEY) return process.env.API_KEY;
-    if (process.env.NEXT_PUBLIC_API_KEY) return process.env.NEXT_PUBLIC_API_KEY;
-    if (process.env.REACT_APP_API_KEY) return process.env.REACT_APP_API_KEY;
-  }
-
-  return ""; 
-};
-
 const createClient = () => {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  // Assume this variable is pre-configured, valid, and accessible.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export const generateGeneralRemark = async (
@@ -33,10 +14,9 @@ export const generateGeneralRemark = async (
   average: number, 
   totalScore: number
 ): Promise<string> => {
-  const ai = createClient();
-  if (!ai) return "Outstanding performance. Keep it up.";
-
   try {
+    const ai = createClient();
+    
     const roleTitle = role === 'PRINCIPAL' ? 'Principal' : 'Form Master';
     const performanceContext = average >= 70 ? "Excellent" : average >= 50 ? "Good" : "Needs Improvement";
 
@@ -54,9 +34,7 @@ export const generateGeneralRemark = async (
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
-      config: {
-        maxOutputTokens: 60,
-      }
+      // Removed maxOutputTokens to avoid issues with thinking budget
     });
 
     return response.text?.trim() || "A good result overall.";

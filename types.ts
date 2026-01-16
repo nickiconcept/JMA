@@ -140,6 +140,9 @@ export interface SchoolConfig {
   principalName: string;
   principalSignature?: string; // Base64 string
   logo?: string; // Base64 string
+  // Active Context for Data Entry
+  activeSession: string; 
+  activeTerm: Term;
   nextTermBegins: string;
   nextTermEnds: string;
   // Dynamic labels for report card table

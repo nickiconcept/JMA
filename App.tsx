@@ -19,10 +19,10 @@ import PsychomotorManager from './components/PsychomotorManager';
 import SchoolConfigManager from './components/SchoolConfigManager';
 import StudentResultReview from './components/StudentResultReview';
 
-import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord } from './types';
+import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance, mockSchoolConfig, mockPsychomotor } from './services/mockData';
-import { MOCK_LOGS_INITIAL, CURRENT_SESSION, CURRENT_TERM } from './constants';
-import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, InformationCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { MOCK_LOGS_INITIAL } from './constants';
+import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, InformationCircleIcon, ArrowLeftIcon, KeyIcon } from '@heroicons/react/24/solid';
 
 // --- Login Component ---
 interface LoginScreenProps {
@@ -183,6 +183,61 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   );
 };
 
+// --- Change Password Component ---
+const ChangePasswordView: React.FC<{ 
+    user: User, 
+    onCancel: () => void, 
+    onChangePassword: (newPass: string) => void 
+}> = ({ user, onCancel, onChangePassword }) => {
+    const [currentPass, setCurrentPass] = useState('');
+    const [newPass, setNewPass] = useState('');
+    const [confirmPass, setConfirmPass] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const actualCurrent = user.password || 'password';
+        if (currentPass !== actualCurrent) {
+            alert("Current password incorrect.");
+            return;
+        }
+        if (newPass.length < 6) {
+            alert("New password must be at least 6 characters.");
+            return;
+        }
+        if (newPass !== confirmPass) {
+            alert("New passwords do not match.");
+            return;
+        }
+        onChangePassword(newPass);
+    };
+
+    return (
+        <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md border border-slate-200 mt-10">
+            <h2 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2">
+                <KeyIcon className="h-6 w-6 text-blue-600"/> Change Password
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Current Password</label>
+                    <input type="password" required value={currentPass} onChange={e => setCurrentPass(e.target.value)} className="w-full border p-2 rounded mt-1"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">New Password</label>
+                    <input type="password" required value={newPass} onChange={e => setNewPass(e.target.value)} className="w-full border p-2 rounded mt-1"/>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Confirm New Password</label>
+                    <input type="password" required value={confirmPass} onChange={e => setConfirmPass(e.target.value)} className="w-full border p-2 rounded mt-1"/>
+                </div>
+                <div className="flex justify-between pt-4">
+                    <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+                    <Button type="submit">Update Password</Button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 const App: React.FC = () => {
   const loadFromStorage = <T,>(key: string, fallback: T): T => {
     try {
@@ -226,6 +281,10 @@ const App: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [formMasterViewCount, setFormMasterViewCount] = useState<number>(0);
+
+  // Admin view filters
+  const [adminSessionFilter, setAdminSessionFilter] = useState(schoolConfig.activeSession);
+  const [adminTermFilter, setAdminTermFilter] = useState<Term>(schoolConfig.activeTerm);
 
   const addLog = (userId: string, role: string, action: string, details: string) => {
     const newLog: AuditLog = {
@@ -329,6 +388,16 @@ const App: React.FC = () => {
      setSelectedSubjectId(null);
   };
 
+  const handleChangePassword = (newPass: string) => {
+      if (!user) return;
+      const updatedUser = { ...user, password: newPass };
+      setUser(updatedUser);
+      setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+      addLog(user.id, user.role, 'PASSWORD_CHANGE', 'User changed password');
+      alert("Password updated successfully.");
+      setView('dashboard');
+  };
+
   const handleSaveResult = (newResult: Result) => {
     setResults(prev => {
         const idx = prev.findIndex(r => r.id === newResult.id);
@@ -347,7 +416,8 @@ const App: React.FC = () => {
       const role = user.role;
       setResults(prev => {
           const updated = prev.map(r => {
-              if (r.studentId === studentId && r.session === CURRENT_SESSION && r.term === CURRENT_TERM) {
+              // Only update current active session/term results
+              if (r.studentId === studentId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm) {
                   if (role === UserRole.PRINCIPAL) {
                       return { ...r, principalRemark: remark, isApproved: true, isLocked: true };
                   } else if (role === UserRole.FORM_MASTER) {
@@ -392,6 +462,14 @@ const App: React.FC = () => {
       const p = () => Math.floor(1000 + Math.random() * 9000);
       return `${p()}-${p()}-${p()}`;
   };
+
+  // Back Button Component
+  const BackButton = () => (
+      <button onClick={() => setView('dashboard')} className="flex items-center text-slate-500 hover:text-blue-600 mb-4 font-medium transition-colors">
+          <ArrowLeftIcon className="h-4 w-4 mr-2" />
+          Back to Dashboard
+      </button>
+  );
   
   const DashboardView = () => (
     <div className="space-y-8">
@@ -404,8 +482,15 @@ const App: React.FC = () => {
                     : 'Manage school operations, results, and student data.'}
                 </p>
             </div>
-            <div className="mt-4 md:mt-0 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-bold text-sm">
-                Session 2024/2025
+            <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
+                <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-bold text-sm">
+                    Active: {schoolConfig.activeSession} - {schoolConfig.activeTerm}
+                </div>
+                {user?.role !== UserRole.STUDENT && (
+                    <Button variant="outline" onClick={() => setView('change_password')} className="text-xs py-1.5 px-3">
+                        Change Password
+                    </Button>
+                )}
             </div>
         </div>
         
@@ -446,6 +531,11 @@ const App: React.FC = () => {
   );
 
   const ResultEntryFlow = () => {
+    // Logic for Admin to switch contexts
+    const isRestricted = user?.role !== UserRole.ADMIN;
+    const currentSession = isRestricted ? schoolConfig.activeSession : adminSessionFilter;
+    const currentTerm = isRestricted ? schoolConfig.activeTerm : adminTermFilter;
+
     if (!selectedClassId || !selectedSubjectId) {
         const visibleClasses = user?.role === UserRole.ADMIN || user?.role === UserRole.PRINCIPAL
             ? classes 
@@ -465,50 +555,73 @@ const App: React.FC = () => {
             }
         }
 
-        // text-base prevents zoom on mobile
         const selectClass = "w-full p-4 rounded-xl border border-slate-200 bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none font-medium text-slate-700 text-base sm:text-sm";
 
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="bg-white p-6 md:p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 max-w-xl w-full mx-4">
-                    <div className="text-center mb-8 md:mb-10">
-                        <div className="h-14 w-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <AcademicCapIcon className="h-8 w-8" />
+            <div className="space-y-6">
+                <BackButton />
+                {user?.role === UserRole.ADMIN && (
+                    <div className="bg-blue-50 p-4 rounded-lg flex gap-4 items-end mb-6 border border-blue-100">
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-blue-800">Admin View: Session</label>
+                            <select className="w-full border p-1.5 rounded" value={adminSessionFilter} onChange={e => setAdminSessionFilter(e.target.value)}>
+                                <option value="2023/2024">2023/2024</option>
+                                <option value="2024/2025">2024/2025</option>
+                                <option value="2025/2026">2025/2026</option>
+                            </select>
                         </div>
-                        <h3 className="text-2xl font-bold font-display text-slate-900">Start Grading</h3>
-                        <p className="text-slate-500 mt-2">Select a class and subject to enter scores.</p>
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-blue-800">Term</label>
+                            <select className="w-full border p-1.5 rounded" value={adminTermFilter} onChange={e => setAdminTermFilter(e.target.value as Term)}>
+                                <option value={Term.FIRST}>{Term.FIRST}</option>
+                                <option value={Term.SECOND}>{Term.SECOND}</option>
+                                <option value={Term.THIRD}>{Term.THIRD}</option>
+                            </select>
+                        </div>
                     </div>
-                    <div className="space-y-6">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target Class</label>
-                            <select 
-                                className={selectClass}
-                                onChange={(e) => { setSelectedClassId(e.target.value); setSelectedSubjectId(null); }}
-                                value={selectedClassId || ''}
-                            >
-                                <option value="">Select Class...</option>
-                                {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
-                            </select>
+                )}
+
+                <div className="flex items-center justify-center min-h-[50vh]">
+                    <div className="bg-white p-6 md:p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 max-w-xl w-full mx-4">
+                        <div className="text-center mb-8 md:mb-10">
+                            <div className="h-14 w-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <AcademicCapIcon className="h-8 w-8" />
+                            </div>
+                            <h3 className="text-2xl font-bold font-display text-slate-900">Start Grading</h3>
+                            <p className="text-slate-500 mt-2">Entering results for <span className="font-bold text-blue-600">{currentSession} - {currentTerm}</span></p>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Subject</label>
-                            <select 
-                                 className={selectClass}
-                                 onChange={(e) => setSelectedSubjectId(e.target.value)}
-                                 value={selectedSubjectId || ''}
-                                 disabled={!selectedClassId}
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target Class</label>
+                                <select 
+                                    className={selectClass}
+                                    onChange={(e) => { setSelectedClassId(e.target.value); setSelectedSubjectId(null); }}
+                                    value={selectedClassId || ''}
+                                >
+                                    <option value="">Select Class...</option>
+                                    {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Subject</label>
+                                <select 
+                                    className={selectClass}
+                                    onChange={(e) => setSelectedSubjectId(e.target.value)}
+                                    value={selectedSubjectId || ''}
+                                    disabled={!selectedClassId}
+                                >
+                                    <option value="">Select Subject...</option>
+                                    {visibleSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                            <Button 
+                                disabled={!selectedClassId || !selectedSubjectId}
+                                onClick={() => {}} 
+                                className="w-full py-4 text-lg"
                             >
-                                <option value="">Select Subject...</option>
-                                {visibleSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
+                                Proceed to Entry
+                            </Button>
                         </div>
-                        <Button 
-                            disabled={!selectedClassId || !selectedSubjectId}
-                            onClick={() => {}} 
-                            className="w-full py-4 text-lg"
-                        >
-                            Proceed to Entry
-                        </Button>
                     </div>
                 </div>
             </div>
@@ -528,7 +641,7 @@ const App: React.FC = () => {
                     </button>
                     <div>
                         <h2 className="text-lg md:text-xl font-bold font-display text-slate-900 truncate max-w-[150px] md:max-w-none">{subjectName}</h2>
-                        <p className="text-slate-500 text-xs md:text-sm font-medium">{classStudents.length} Students</p>
+                        <p className="text-slate-500 text-xs md:text-sm font-medium">{classStudents.length} Students | {currentTerm}</p>
                     </div>
                 </div>
                 <div className="text-right">
@@ -539,8 +652,11 @@ const App: React.FC = () => {
             
             <div className="grid grid-cols-1 gap-6 pb-20">
                 {classStudents.map(student => {
-                    const existing = results.find(r => r.studentId === student.id && r.subjectId === selectedSubjectId);
-                    const isReadOnly = user?.role === UserRole.TEACHER && !!existing;
+                    const existing = results.find(r => r.studentId === student.id && r.subjectId === selectedSubjectId && r.session === currentSession && r.term === currentTerm);
+                    
+                    // Logic: Teachers cannot edit approved/locked results, or past results if strict mode
+                    const isReadOnly = (user?.role === UserRole.TEACHER && (!!existing && existing.isLocked)) || 
+                                       (isRestricted && (currentSession !== schoolConfig.activeSession || currentTerm !== schoolConfig.activeTerm));
 
                     return (
                         <div key={student.id}>
@@ -548,6 +664,8 @@ const App: React.FC = () => {
                                 student={student} 
                                 subject={subjectName || ''}
                                 subjectId={selectedSubjectId!}
+                                session={currentSession}
+                                term={currentTerm}
                                 existingResult={existing}
                                 isReadOnly={isReadOnly}
                                 onSave={(r) => {
@@ -568,21 +686,24 @@ const App: React.FC = () => {
      const myClassId = user?.assignedClassIds?.[0]; 
      const myClass = classes.find(c => c.id === myClassId);
      
-     if (!myClass && user?.role !== UserRole.ADMIN) return <div>You are not assigned to a class as Form Master.</div>;
+     if (!myClass && user?.role !== UserRole.ADMIN) return <div><BackButton/> You are not assigned to a class as Form Master.</div>;
      
      const targetClass = user?.role === UserRole.ADMIN ? classes[0] : myClass; 
-     if (!targetClass) return <div>No classes available.</div>;
+     if (!targetClass) return <div><BackButton/> No classes available.</div>;
 
      const classStudents = students.filter(s => s.classId === targetClass.id);
 
      return (
-         <AttendanceRegister 
-            currentClass={targetClass}
-            students={classStudents}
-            attendanceRecords={attendance}
-            onSaveAttendance={handleSaveAttendance}
-            currentUserRole={user?.role}
-         />
+         <div className="space-y-4">
+             <BackButton />
+             <AttendanceRegister 
+                currentClass={targetClass}
+                students={classStudents}
+                attendanceRecords={attendance}
+                onSaveAttendance={handleSaveAttendance}
+                currentUserRole={user?.role}
+             />
+         </div>
      );
   };
 
@@ -611,182 +732,233 @@ const App: React.FC = () => {
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={handleViewChange}>
       {view === 'dashboard' && <DashboardView />}
+      {view === 'change_password' && <ChangePasswordView user={user} onCancel={() => setView('dashboard')} onChangePassword={handleChangePassword} />}
       {view === 'results' && <ResultEntryFlow />}
       
       {view === 'attendance' && <AttendanceView />}
       
       {view === 'staff_manager' && (
-          <StaffManagement 
-            users={users} classes={classes} subjects={subjects}
-            onAddUser={(u) => { setUsers(prev => [...prev, u]); addLog(user.id, user.role, 'ADD_USER', `Added user ${u.name}`); }}
-            onUpdateUser={(u) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); addLog(user.id, user.role, 'UPDATE_USER', `Updated user ${u.name}`); }}
-            onDeleteUser={(id) => { setUsers(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_USER', `Deleted user ${id}`); }}
-          />
+          <div className="space-y-4">
+              <BackButton />
+              <StaffManagement 
+                users={users} classes={classes} subjects={subjects}
+                onAddUser={(u) => { setUsers(prev => [...prev, u]); addLog(user.id, user.role, 'ADD_USER', `Added user ${u.name}`); }}
+                onUpdateUser={(u) => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); addLog(user.id, user.role, 'UPDATE_USER', `Updated user ${u.name}`); }}
+                onDeleteUser={(id) => { setUsers(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_USER', `Deleted user ${id}`); }}
+              />
+          </div>
       )}
 
       {view === 'pins' && (
-          <PinManager 
-            pins={pins}
-            classes={classes}
-            students={students}
-            onGenerateForClass={(classId, amountPerStudent) => {
-                const classStudents = students.filter(s => s.classId === classId);
-                if (classStudents.length === 0) return;
-                const newPins: Pin[] = classStudents.map(student => ({
-                    code: generatePinCode(),
-                    usageCount: 0,
-                    maxUsage: 5,
-                    generatedBy: user.id,
-                    expiryDate: '2025-12-31',
-                    isUsed: false,
-                    assignedStudentId: student.id
-                }));
-                setPins(prev => [...newPins, ...prev]);
-                addLog(user.id, user.role, 'GENERATE_PINS', `Generated ${newPins.length} pins for class ${classId}`);
-                alert(`Successfully generated ${newPins.length} pins for ${classStudents.length} students.`);
-            }}
-            onAssignStudent={(code, studentId) => {
-                setPins(prev => prev.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));
-                addLog(user.id, user.role, 'ASSIGN_PIN', `Assigned PIN ${code} to student ${studentId}`);
-            }}
-          />
+          <div className="space-y-4">
+              <BackButton />
+              <PinManager 
+                pins={pins}
+                classes={classes}
+                students={students}
+                onGenerateForClass={(classId, amountPerStudent) => {
+                    const classStudents = students.filter(s => s.classId === classId);
+                    if (classStudents.length === 0) return;
+                    const newPins: Pin[] = classStudents.map(student => ({
+                        code: generatePinCode(),
+                        usageCount: 0,
+                        maxUsage: 5,
+                        generatedBy: user.id,
+                        expiryDate: '2025-12-31',
+                        isUsed: false,
+                        assignedStudentId: student.id
+                    }));
+                    setPins(prev => [...newPins, ...prev]);
+                    addLog(user.id, user.role, 'GENERATE_PINS', `Generated ${newPins.length} pins for class ${classId}`);
+                    alert(`Successfully generated ${newPins.length} pins for ${classStudents.length} students.`);
+                }}
+                onAssignStudent={(code, studentId) => {
+                    setPins(prev => prev.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));
+                    addLog(user.id, user.role, 'ASSIGN_PIN', `Assigned PIN ${code} to student ${studentId}`);
+                }}
+              />
+          </div>
       )}
 
-      {view === 'insights' && <Insights results={results} students={students} classes={classes} />}
-      {view === 'audit' && <AuditLogsTable logs={logs} />}
+      {view === 'insights' && (
+          <div className="space-y-4">
+              <BackButton />
+              <Insights results={results} students={students} classes={classes} />
+          </div>
+      )}
+      {view === 'audit' && (
+          <div className="space-y-4">
+              <BackButton />
+              <AuditLogsTable logs={logs} />
+          </div>
+      )}
       {view === 'approvals' && (
-           <ResultApproval 
-                user={user}
-                results={results}
-                students={students}
-                classes={classes}
-                subjects={subjects}
-                onUpdateResult={handleSaveResult}
-           />
+           <div className="space-y-4">
+                <BackButton />
+                <ResultApproval 
+                        user={user}
+                        results={results}
+                        students={students}
+                        classes={classes}
+                        subjects={subjects}
+                        onUpdateResult={handleSaveResult}
+                />
+           </div>
       )}
       {view === 'print_results' && (
-          <ResultPrintingManager 
-              user={user}
-              classes={classes}
-              students={students}
-              results={results}
-              subjects={subjects}
-              schoolConfig={schoolConfig}
-              psychomotorRecords={psychomotor}
-              users={users}
-          />
+          <div className="space-y-4">
+                <BackButton />
+                <ResultPrintingManager 
+                    user={user}
+                    classes={classes}
+                    students={students}
+                    results={results}
+                    subjects={subjects}
+                    schoolConfig={schoolConfig}
+                    psychomotorRecords={psychomotor}
+                    users={users}
+                />
+          </div>
       )}
       {view === 'promotions' && (
-          <PromotionManager
-              students={students}
-              classes={classes}
-              results={results}
-              onPromoteStudents={(updates) => {
-                  setStudents(prev => {
-                      const updatedStudents = [...prev];
-                      updates.forEach(u => {
-                          const idx = updatedStudents.findIndex(s => s.id === u.studentId);
-                          if(idx !== -1) {
-                              updatedStudents[idx] = { ...updatedStudents[idx], classId: u.newClassId, promotionStatus: u.status };
-                          }
-                      });
-                      return updatedStudents;
-                  });
-                  addLog(user.id, user.role, 'BULK_PROMOTION', `Promoted ${updates.length} students`);
-              }}
-          />
-      )}
-      {view === 'class_manager' && (
-           <ClassManager 
-                classes={classes}
-                users={users}
-                onAdd={(c) => { setClasses(prev => [...prev, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
-                onUpdate={(c) => { setClasses(prev => prev.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
-                onDelete={(id) => { setClasses(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
-                currentUserRole={user.role}
-           />
-      )}
-      {view === 'students_manager' && (
-           <StudentManager
+          <div className="space-y-4">
+              <BackButton />
+              <PromotionManager
                 students={students}
                 classes={classes}
-                onAdd={(s) => { setStudents(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_STUDENT', `Added student ${s.name}`); }}
-                onUpdate={(s) => { setStudents(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_STUDENT', `Updated student ${s.name}`); }}
-                onDelete={(id) => { setStudents(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_STUDENT', `Deleted student ${id}`); }}
-           />
+                results={results}
+                onPromoteStudents={(updates) => {
+                    setStudents(prev => {
+                        const updatedStudents = [...prev];
+                        updates.forEach(u => {
+                            const idx = updatedStudents.findIndex(s => s.id === u.studentId);
+                            if(idx !== -1) {
+                                updatedStudents[idx] = { ...updatedStudents[idx], classId: u.newClassId, promotionStatus: u.status };
+                            }
+                        });
+                        return updatedStudents;
+                    });
+                    addLog(user.id, user.role, 'BULK_PROMOTION', `Promoted ${updates.length} students`);
+                }}
+              />
+          </div>
+      )}
+      {view === 'class_manager' && (
+           <div className="space-y-4">
+               <BackButton />
+               <ClassManager 
+                    classes={classes}
+                    users={users}
+                    onAdd={(c) => { setClasses(prev => [...prev, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
+                    onUpdate={(c) => { setClasses(prev => prev.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
+                    onDelete={(id) => { setClasses(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
+                    currentUserRole={user.role}
+               />
+           </div>
+      )}
+      {view === 'students_manager' && (
+           <div className="space-y-4">
+               <BackButton />
+               <StudentManager
+                    students={students}
+                    classes={classes}
+                    onAdd={(s) => { setStudents(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_STUDENT', `Added student ${s.name}`); }}
+                    onUpdate={(s) => { setStudents(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_STUDENT', `Updated student ${s.name}`); }}
+                    onDelete={(id) => { setStudents(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_STUDENT', `Deleted student ${id}`); }}
+               />
+           </div>
       )}
       {view === 'subjects' && (
-           <SubjectManager
-                subjects={subjects}
-                onAdd={(s) => { setSubjects(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_SUBJECT', `Added subject ${s.name}`); }}
-                onUpdate={(s) => { setSubjects(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_SUBJECT', `Updated subject ${s.name}`); }}
-                onDelete={(id) => { setSubjects(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_SUBJECT', `Deleted subject ${id}`); }}
-           />
+           <div className="space-y-4">
+               <BackButton />
+               <SubjectManager
+                    subjects={subjects}
+                    onAdd={(s) => { setSubjects(prev => [...prev, s]); addLog(user.id, user.role, 'ADD_SUBJECT', `Added subject ${s.name}`); }}
+                    onUpdate={(s) => { setSubjects(prev => prev.map(x => x.id === s.id ? s : x)); addLog(user.id, user.role, 'UPDATE_SUBJECT', `Updated subject ${s.name}`); }}
+                    onDelete={(id) => { setSubjects(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_SUBJECT', `Deleted subject ${id}`); }}
+               />
+           </div>
       )}
       {view === 'psychomotor' && (
-          <PsychomotorManager
-             students={students}
-             classes={classes}
-             records={psychomotor}
-             userRole={user.role}
-             assignedClassIds={user.assignedClassIds}
-             onSave={(record) => {
-               setPsychomotor(prev => {
-                 const idx = prev.findIndex(r => r.id === record.id);
-                 if (idx >= 0) {
-                   const updated = [...prev];
-                   updated[idx] = record;
-                   return updated;
-                 }
-                 return [...prev, record];
-               });
-               addLog(user.id, user.role, 'UPDATE_PSYCHOMOTOR', `Updated psychomotor for ${record.studentId}`);
-             }}
-          />
+          <div className="space-y-4">
+              <BackButton />
+              <PsychomotorManager
+                students={students}
+                classes={classes}
+                records={psychomotor}
+                userRole={user.role}
+                assignedClassIds={user.assignedClassIds}
+                onSave={(record) => {
+                setPsychomotor(prev => {
+                    const idx = prev.findIndex(r => r.id === record.id);
+                    if (idx >= 0) {
+                    const updated = [...prev];
+                    updated[idx] = record;
+                    return updated;
+                    }
+                    return [...prev, record];
+                });
+                addLog(user.id, user.role, 'UPDATE_PSYCHOMOTOR', `Updated psychomotor for ${record.studentId}`);
+                }}
+              />
+          </div>
       )}
       {view === 'config' && (
-          <SchoolConfigManager
-             config={schoolConfig}
-             onSave={(cfg) => {
-                setSchoolConfig(cfg);
-                addLog(user.id, user.role, 'UPDATE_CONFIG', 'Updated portal configuration');
-                alert("Configuration Saved!");
-             }}
-          />
+          <div className="space-y-4">
+              <BackButton />
+              <SchoolConfigManager
+                config={schoolConfig}
+                onSave={(cfg) => {
+                    setSchoolConfig(cfg);
+                    addLog(user.id, user.role, 'UPDATE_CONFIG', 'Updated portal configuration');
+                    alert("Configuration Saved!");
+                }}
+              />
+          </div>
       )}
       {/* Principal Review Panel */}
       {view === 'principal_review' && (
-          <StudentResultReview 
-              students={students}
-              results={results}
-              classes={classes}
-              subjects={subjects}
-              userRole={user.role}
-              onSaveRemark={handleSaveReviewRemark}
-          />
+          <div className="space-y-4">
+              <BackButton />
+              <StudentResultReview 
+                students={students}
+                results={results}
+                classes={classes}
+                subjects={subjects}
+                userRole={user.role}
+                onSaveRemark={handleSaveReviewRemark}
+              />
+          </div>
       )}
       {/* Form Master Review Panel */}
       {view === 'fm_review' && (
-          <StudentResultReview 
-              students={students}
-              results={results}
-              classes={classes}
-              subjects={subjects}
-              userRole={user.role}
-              onSaveRemark={handleSaveReviewRemark}
-              assignedClassIds={user.assignedClassIds}
-          />
+          <div className="space-y-4">
+              <BackButton />
+              <StudentResultReview 
+                students={students}
+                results={results}
+                classes={classes}
+                subjects={subjects}
+                userRole={user.role}
+                onSaveRemark={handleSaveReviewRemark}
+                assignedClassIds={user.assignedClassIds}
+              />
+          </div>
       )}
       {view === 'my_result' && (
-        <StudentReportCard 
-            student={students.find(s => s.id === user.id)!} 
-            results={results.filter(r => r.studentId === user.id)} 
-            subjects={subjects}
-            classes={classes}
-            schoolConfig={schoolConfig}
-            psychomotorRecord={psychomotor.find(p => p.studentId === user.id && p.session === CURRENT_SESSION && p.term === CURRENT_TERM)}
-            formMaster={getFormMasterForClass(students.find(s => s.id === user.id)!.classId)}
-        />
+        <div className="space-y-4">
+            <BackButton />
+            <StudentReportCard 
+                student={students.find(s => s.id === user.id)!} 
+                results={results.filter(r => r.studentId === user.id && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)} 
+                allResults={results.filter(r => r.studentId === user.id)}
+                subjects={subjects}
+                classes={classes}
+                schoolConfig={schoolConfig}
+                psychomotorRecord={psychomotor.find(p => p.studentId === user.id && p.session === schoolConfig.activeSession && p.term === schoolConfig.activeTerm)}
+                formMaster={getFormMasterForClass(students.find(s => s.id === user.id)!.classId)}
+            />
+        </div>
       )}
     </Layout>
   );
