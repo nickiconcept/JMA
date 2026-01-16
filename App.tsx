@@ -497,17 +497,51 @@ const App: React.FC = () => {
         {user?.role !== UserRole.STUDENT && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: 'Total Students', count: students.length, color: 'blue' },
-                    { label: 'Results Logged', count: results.length, color: 'emerald' },
-                    { label: 'Active Staff', count: users.filter(u => u.role !== UserRole.STUDENT).length, color: 'purple' },
-                    { label: 'Classes', count: classes.length, color: 'amber' },
+                    { 
+                        label: 'Total Students', 
+                        count: students.length, 
+                        color: 'blue',
+                        view: user.role === UserRole.ADMIN ? 'students_manager' : undefined
+                    },
+                    { 
+                        label: 'Results Logged', 
+                        count: results.length, 
+                        color: 'emerald',
+                        view: 'results'
+                    },
+                    { 
+                        label: 'Active Staff', 
+                        count: users.filter(u => u.role !== UserRole.STUDENT).length, 
+                        color: 'purple',
+                        view: user.role === UserRole.ADMIN ? 'staff_manager' : undefined
+                    },
+                    { 
+                        label: 'Classes', 
+                        count: classes.length, 
+                        color: 'amber',
+                        view: user.role === UserRole.ADMIN ? 'class_manager' : undefined
+                    },
                 ].map((item, idx) => (
-                    <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 group">
-                        <div className={`text-${item.color}-600 text-xs font-bold uppercase tracking-wider mb-2`}>{item.label}</div>
-                        <div className="text-4xl font-black text-slate-900 font-display group-hover:scale-105 transition-transform origin-left">{item.count}</div>
+                    <div 
+                        key={idx} 
+                        onClick={() => item.view && setView(item.view)}
+                        className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 transition-all duration-300 group relative overflow-hidden flex flex-col justify-between
+                        ${item.view ? 'cursor-pointer hover:shadow-md hover:-translate-y-1 active:scale-95 active:bg-slate-50' : ''}`}
+                    >
+                        <div>
+                            <div className={`text-${item.color}-600 text-xs font-bold uppercase tracking-wider mb-2`}>{item.label}</div>
+                            <div className="text-4xl font-black text-slate-900 font-display group-hover:scale-105 transition-transform origin-left">{item.count}</div>
+                        </div>
                         <div className="h-1.5 w-full bg-slate-100 rounded-full mt-4 overflow-hidden">
                             <div className={`h-full bg-${item.color}-500 w-2/3 rounded-full`}></div>
                         </div>
+                         {item.view && (
+                            <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-5 h-5 text-${item.color}-500`}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                                </svg>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -852,7 +886,12 @@ const App: React.FC = () => {
                     onAdd={(c) => { setClasses(prev => [...prev, c]); addLog(user.id, user.role, 'ADD_CLASS', `Added class ${c.name}`); }}
                     onUpdate={(c) => { setClasses(prev => prev.map(x => x.id === c.id ? c : x)); addLog(user.id, user.role, 'UPDATE_CLASS', `Updated class ${c.name}`); }}
                     onDelete={(id) => { setClasses(prev => prev.filter(x => x.id !== id)); addLog(user.id, user.role, 'DELETE_CLASS', `Deleted class ${id}`); }}
-                    currentUserRole={user.role}
+                    currentUser={user}
+                    students={students}
+                    results={results}
+                    subjects={subjects}
+                    schoolConfig={schoolConfig}
+                    psychomotorRecords={psychomotor}
                />
            </div>
       )}

@@ -126,8 +126,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
              </>
           )}
 
-          {/* Printing - Admin & Form Master */}
-          {(user.role === UserRole.ADMIN || user.role === UserRole.FORM_MASTER) && (
+          {/* Printing - Admin Only */}
+          {user.role === UserRole.ADMIN && (
               <NavItem view="print_results" icon={PrinterIcon} label="Print Results" />
           )}
 
@@ -138,8 +138,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
               <NavItem view="config" icon={Cog6ToothIcon} label="Portal Configuration" />
               <NavItem view="promotions" icon={ArrowTrendingUpIcon} label="Promotions" />
               <NavItem view="staff_manager" icon={UsersIcon} label="Staff & Users" />
-              <NavItem view="students_manager" icon={UserGroupIcon} label="Students" />
               <NavItem view="subjects" icon={BookOpenIcon} label="Subjects & Classes" />
+              <NavItem view="students_manager" icon={UserGroupIcon} label="Students" />
               <NavItem view="pins" icon={KeyIcon} label="PIN Manager" />
               <NavItem view="audit" icon={ClipboardDocumentCheckIcon} label="Audit Logs" />
              </>

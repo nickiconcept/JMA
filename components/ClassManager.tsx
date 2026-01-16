@@ -1,7 +1,10 @@
 
 import React, { useState } from 'react';
-import { ClassDefinition, User, UserRole } from '../types';
+import { ClassDefinition, User, UserRole, Student, Result, Subject, SchoolConfig, PsychomotorRecord, Term } from '../types';
 import Button from './Button';
+import StudentReportCard from './StudentReportCard';
+import { EyeIcon } from '@heroicons/react/24/solid';
+import { CURRENT_SESSION, CURRENT_TERM } from '../constants';
 
 interface Props {
   classes: ClassDefinition[];
@@ -9,23 +12,34 @@ interface Props {
   onAdd: (cls: ClassDefinition) => void;
   onUpdate: (cls: ClassDefinition) => void;
   onDelete: (id: string) => void;
-  currentUserRole?: UserRole; // To check permissions
+  currentUser?: User; // Full user object to check role and assignments
+  // New props for Form Master View
+  students?: Student[];
+  results?: Result[];
+  subjects?: Subject[];
+  schoolConfig?: SchoolConfig;
+  psychomotorRecords?: PsychomotorRecord[];
 }
 
-const ClassManager: React.FC<Props> = ({ classes, users, onAdd, onUpdate, onDelete, currentUserRole }) => {
+const ClassManager: React.FC<Props> = ({ 
+    classes, users, onAdd, onUpdate, onDelete, currentUser,
+    students = [], results = [], subjects = [], schoolConfig, psychomotorRecords = []
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentClass, setCurrentClass] = useState<Partial<ClassDefinition>>({});
+  
+  // State for Form Master View
+  const [viewingStudentId, setViewingStudentId] = useState<string | null>(null);
 
-  const isAdmin = currentUserRole === UserRole.ADMIN;
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const isFormMaster = currentUser?.role === UserRole.FORM_MASTER;
   const formMasters = users.filter(u => u.role === UserRole.FORM_MASTER || u.role === UserRole.TEACHER);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentClass.id && classes.some(c => c.id === currentClass.id && isEditing)) {
-       // Updating existing by logic, though ID usually shouldn't change
        onUpdate(currentClass as ClassDefinition);
     } else {
-       // Creating new
        const newId = `${currentClass.name?.replace(/\s/g, '')}-${currentClass.arm}`;
        onAdd({ ...currentClass, id: newId } as ClassDefinition);
     }
@@ -33,6 +47,97 @@ const ClassManager: React.FC<Props> = ({ classes, users, onAdd, onUpdate, onDele
     setCurrentClass({});
   };
 
+  // --- Form Master Logic ---
+  if (isFormMaster && !isAdmin) {
+      const myClassId = currentUser?.assignedClassIds?.[0];
+      const myClass = classes.find(c => c.id === myClassId);
+      const myStudents = students.filter(s => s.classId === myClassId);
+
+      if (viewingStudentId) {
+          const student = students.find(s => s.id === viewingStudentId);
+          if (!student) return <div>Student not found</div>;
+
+          return (
+              <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                      <Button variant="outline" onClick={() => setViewingStudentId(null)}>← Back to List</Button>
+                      <div className="text-sm font-bold text-slate-500 uppercase tracking-wider bg-yellow-50 text-yellow-700 px-3 py-1 rounded border border-yellow-200">
+                          View Only Mode
+                      </div>
+                  </div>
+                  <StudentReportCard 
+                      student={student}
+                      results={results.filter(r => r.studentId === student.id && r.session === schoolConfig?.activeSession && r.term === schoolConfig?.activeTerm)} 
+                      allResults={results.filter(r => r.studentId === student.id)}
+                      subjects={subjects}
+                      classes={classes}
+                      schoolConfig={schoolConfig}
+                      psychomotorRecord={psychomotorRecords.find(p => p.studentId === student.id && p.session === schoolConfig?.activeSession && p.term === schoolConfig?.activeTerm)}
+                      formMaster={currentUser}
+                      hidePrintButton={true} // Strictly hide print button
+                  />
+              </div>
+          );
+      }
+
+      if (!myClass) {
+          return (
+              <div className="text-center py-20 bg-white rounded-xl border border-slate-200">
+                  <p className="text-slate-500">You are not assigned to any class as a Form Master.</p>
+              </div>
+          );
+      }
+
+      return (
+          <div className="space-y-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h2 className="text-2xl font-bold text-gray-800">My Class: {myClass.name} {myClass.arm}</h2>
+                  <p className="text-slate-500 text-sm mt-1">Manage and view students in your designated class.</p>
+              </div>
+
+              <div className="bg-white shadow overflow-hidden rounded-xl border border-slate-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                          <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                          {myStudents.map((s) => (
+                              <tr key={s.id} className="hover:bg-slate-50">
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">{s.id}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{s.name}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${s.promotionStatus === 'PROMOTED' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
+                                          {s.promotionStatus}
+                                      </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                      <button 
+                                          onClick={() => setViewingStudentId(s.id)}
+                                          className="text-blue-600 hover:text-blue-900 flex items-center justify-end gap-1 ml-auto"
+                                      >
+                                          <EyeIcon className="h-4 w-4" /> View Result
+                                      </button>
+                                  </td>
+                              </tr>
+                          ))}
+                          {myStudents.length === 0 && (
+                              <tr>
+                                  <td colSpan={4} className="px-6 py-10 text-center text-slate-500">No students found in this class.</td>
+                              </tr>
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      );
+  }
+
+  // --- Admin Logic (Default) ---
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
