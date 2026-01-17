@@ -20,7 +20,7 @@ const Insights: React.FC<Props> = ({ results, students, classes }) => {
       const avgScore = classResults.length > 0 
         ? (classResults.reduce((acc, curr) => acc + curr.total, 0) / classResults.length).toFixed(1)
         : 0;
-      return { className: `${c.name} ${c.arm}`, avg: avgScore };
+      return { className: c.name, avg: avgScore };
   });
 
   const StatCard = ({ title, value, subtext, icon: Icon, color }: any) => (
