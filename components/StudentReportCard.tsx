@@ -33,7 +33,7 @@ const StudentReportCard: React.FC<Props> = ({
   };
 
   const studentClass = classes.find(c => c.id === student.classId);
-  const className = studentClass ? `${studentClass.name} ${studentClass.arm}` : student.classId;
+  const className = studentClass ? studentClass.name : student.classId;
   
   // Aggregate calculations for current term
   const totalScore = results.reduce((acc, curr) => acc + curr.total, 0);

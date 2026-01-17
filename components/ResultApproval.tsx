@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Result, Student, ClassDefinition, Subject, UserRole, User } from '../types';
 import Button from './Button';
@@ -49,7 +50,7 @@ const ResultApproval: React.FC<Props> = ({ user, results, students, classes, sub
             onChange={e => setFilterClassId(e.target.value)}
          >
              <option value="">-- All Accessible Classes --</option>
-             {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+             {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
          </select>
       </div>
 

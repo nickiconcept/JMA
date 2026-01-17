@@ -85,7 +85,7 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
               onChange={(e) => { setSelectedClassId(e.target.value); setEditingStudentId(null); }}
            >
               <option value="">-- Select Class --</option>
-              {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+              {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
            </select>
         </div>
       </div>

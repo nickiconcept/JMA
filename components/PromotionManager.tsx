@@ -38,8 +38,6 @@ const PromotionManager: React.FC<Props> = ({ students, classes, results, onPromo
       const t3 = getTermAvg(Term.THIRD);
       
       // Calculate annual average. 
-      // Note: In a real system, we might check if terms exist before dividing by 3. 
-      // Here we assume cumulative means over the full session.
       const cumulative = (t1 + t2 + t3) / 3;
 
       return {
@@ -81,7 +79,7 @@ const PromotionManager: React.FC<Props> = ({ students, classes, results, onPromo
       status: PromotionStatus.PROMOTED
     }));
 
-    if (confirm(`Promote ${updates.length} students to ${classes.find(c => c.id === targetClassId)?.name} ${classes.find(c => c.id === targetClassId)?.arm}?`)) {
+    if (confirm(`Promote ${updates.length} students to ${classes.find(c => c.id === targetClassId)?.name}?`)) {
         onPromoteStudents(updates);
         setSelectedIds(new Set());
         alert("Promotion successfully applied.");
@@ -89,7 +87,7 @@ const PromotionManager: React.FC<Props> = ({ students, classes, results, onPromo
   };
 
     // Auto-suggest next class logic (simple string matching)
-    // E.g. JSS 1 A -> JSS 2 A
+    // E.g. JSS 1 -> JSS 2
     React.useEffect(() => {
         if(selectedClassId) {
             const current = classes.find(c => c.id === selectedClassId);
@@ -98,14 +96,14 @@ const PromotionManager: React.FC<Props> = ({ students, classes, results, onPromo
                 if(parts.length === 2) {
                     const level = parseInt(parts[1]);
                     if(!isNaN(level)) {
-                       // Look for next level with same arm
+                       // Look for next level
                        const nextName = `${parts[0]} ${level + 1}`;
-                       const nextClass = classes.find(c => c.name === nextName && c.arm === current.arm);
+                       const nextClass = classes.find(c => c.name === nextName);
                        if(nextClass) setTargetClassId(nextClass.id);
                     }
                     // Handle JSS 3 -> SSS 1
                     if(current.name === "JSS 3") {
-                         const nextClass = classes.find(c => c.name === "SSS 1" && c.arm === current.arm);
+                         const nextClass = classes.find(c => c.name === "SSS 1");
                          if(nextClass) setTargetClassId(nextClass.id);
                     }
                 }
@@ -139,7 +137,7 @@ const PromotionManager: React.FC<Props> = ({ students, classes, results, onPromo
                     onChange={e => setSelectedClassId(e.target.value)}
                   >
                       <option value="">-- Select Class --</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
               </div>
               <div>
@@ -150,7 +148,7 @@ const PromotionManager: React.FC<Props> = ({ students, classes, results, onPromo
                     onChange={e => setTargetClassId(e.target.value)}
                   >
                       <option value="">-- Select Target --</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
               </div>
           </div>

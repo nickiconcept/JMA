@@ -41,7 +41,7 @@ const PinManager: React.FC<Props> = ({ pins, classes, students, onGenerateForCla
               onChange={e => setSelectedClassId(e.target.value)}
             >
                 <option value="">-- Select Class --</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div className="w-full md:w-auto">
@@ -68,7 +68,7 @@ const PinManager: React.FC<Props> = ({ pins, classes, students, onGenerateForCla
               onChange={e => setFilterClassId(e.target.value)}
             >
                 <option value="">-- Filter by Class --</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
         </div>
         <div className="overflow-x-auto">

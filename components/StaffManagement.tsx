@@ -129,7 +129,7 @@ const StaffManagement: React.FC<Props> = ({ users, classes, subjects, onAddUser,
                           checked={(currentUser.assignedClassIds || []).includes(c.id)}
                           onChange={() => toggleSelection(c.id, 'assignedClassIds')}
                         />
-                        <span className="text-sm">{c.name} {c.arm}</span>
+                        <span className="text-sm">{c.name}</span>
                       </label>
                     ))}
                   </div>

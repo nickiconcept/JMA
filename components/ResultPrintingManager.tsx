@@ -66,7 +66,7 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
                     onChange={(e) => { setSelectedClassId(e.target.value); setSelectedStudentId(''); }}
                 >
                     <option value="">-- Select Class --</option>
-                    {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                    {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
             </div>
 

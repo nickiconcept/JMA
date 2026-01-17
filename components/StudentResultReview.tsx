@@ -86,7 +86,7 @@ const StudentResultReview: React.FC<Props> = ({
                             onChange={e => { setSelectedClassId(e.target.value); setSelectedStudentId(''); }}
                         >
                             <option value="">-- Choose Class --</option>
-                            {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                            {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
                     <div>
