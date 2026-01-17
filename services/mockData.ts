@@ -3,9 +3,9 @@ import { User, UserRole, Student, Result, Term, Pin, ClassDefinition, Subject, P
 import { CURRENT_SESSION, CURRENT_TERM, SCHOOL_NAME } from "../constants";
 
 export const mockClasses: ClassDefinition[] = [
-  { id: 'JSS1-A', name: 'JSS 1', arm: 'A', formMasterId: 'form-1' },
-  { id: 'JSS1-B', name: 'JSS 1', arm: 'B', formMasterId: 'form-2' },
-  { id: 'SSS2-A', name: 'SSS 2', arm: 'A', formMasterId: 'form-3' },
+  { id: 'JSS1', name: 'JSS 1', formMasterId: 'form-1' },
+  { id: 'JSS2', name: 'JSS 2', formMasterId: 'form-2' },
+  { id: 'SSS2', name: 'SSS 2', formMasterId: 'form-3' },
 ];
 
 export const mockSubjects: Subject[] = [
@@ -22,25 +22,25 @@ export const mockUsers: User[] = [
   // Teachers
   { 
     id: 'teach-1', name: 'Mrs. Adewale', email: 'adewale@jere.edu.ng', role: UserRole.TEACHER, isActive: true, 
-    assignedClassIds: ['JSS1-A', 'JSS1-B'], assignedSubjectIds: ['MATH'] 
+    assignedClassIds: ['JSS1'], assignedSubjectIds: ['MATH'] 
   },
   { 
     id: 'teach-2', name: 'Mr. Balogun', email: 'balogun@jere.edu.ng', role: UserRole.TEACHER, isActive: true, 
-    assignedClassIds: ['JSS1-A', 'SSS2-A'], assignedSubjectIds: ['ENG', 'CIVIC'] 
+    assignedClassIds: ['JSS1', 'SSS2'], assignedSubjectIds: ['ENG', 'CIVIC'] 
   },
 
   // Form Masters (Who are also teachers usually, but for simplicity defined here)
   { 
     id: 'form-1', name: 'Mr. Okonkwo', email: 'okonkwo@jere.edu.ng', role: UserRole.FORM_MASTER, isActive: true, 
-    assignedClassIds: ['JSS1-A'], assignedSubjectIds: ['BSC'] 
+    assignedClassIds: ['JSS1'], assignedSubjectIds: ['BSC'] 
   },
 ];
 
 export const mockStudents: Student[] = [
-  { id: 'JMA/24/001', name: 'Ibrahim Musa', classId: 'JSS1-A', promotionStatus: PromotionStatus.PENDING },
-  { id: 'JMA/24/002', name: 'Chidinma Obi', classId: 'JSS1-A', promotionStatus: PromotionStatus.PENDING },
-  { id: 'JMA/24/003', name: 'Yusuf Sani', classId: 'JSS1-B', promotionStatus: PromotionStatus.PENDING },
-  { id: 'JMA/24/004', name: 'Emeka Eze', classId: 'SSS2-A', promotionStatus: PromotionStatus.PENDING },
+  { id: 'JMA/24/001', name: 'Ibrahim Musa', classId: 'JSS1', promotionStatus: PromotionStatus.PENDING },
+  { id: 'JMA/24/002', name: 'Chidinma Obi', classId: 'JSS1', promotionStatus: PromotionStatus.PENDING },
+  { id: 'JMA/24/003', name: 'Yusuf Sani', classId: 'JSS1', promotionStatus: PromotionStatus.PENDING },
+  { id: 'JMA/24/004', name: 'Emeka Eze', classId: 'SSS2', promotionStatus: PromotionStatus.PENDING },
 ];
 
 export const mockResults: Result[] = [
@@ -74,7 +74,7 @@ export const mockResults: Result[] = [
 ];
 
 export const mockAttendance: Attendance[] = [
-  { id: 'att-1', studentId: 'JMA/24/001', classId: 'JSS1-A', date: new Date().toISOString().split('T')[0], status: 'PRESENT', term: CURRENT_TERM, session: CURRENT_SESSION }
+  { id: 'att-1', studentId: 'JMA/24/001', classId: 'JSS1', date: new Date().toISOString().split('T')[0], status: 'PRESENT', term: CURRENT_TERM, session: CURRENT_SESSION }
 ];
 
 export const mockPins: Pin[] = [

@@ -15,9 +15,8 @@ export enum Term {
 }
 
 export interface ClassDefinition {
-  id: string; // e.g., "JSS1-A"
+  id: string; // e.g., "JSS1"
   name: string; // "JSS 1"
-  arm: string; // "A"
   formMasterId?: string;
 }
 
@@ -38,7 +37,7 @@ export interface User {
   isActive: boolean;
   signatureUrl?: string; // Added for signatures
   // assignments
-  assignedClassIds?: string[]; // IDs of ClassDefinition e.g., ["JSS1-A"]
+  assignedClassIds?: string[]; // IDs of ClassDefinition e.g., ["JSS1"]
   assignedSubjectIds?: string[]; // IDs of Subject e.g., ["MATH", "ENG"]
 }
 
@@ -52,7 +51,7 @@ export enum PromotionStatus {
 export interface Student {
   id: string; // Admission Number
   name: string;
-  classId: string; // e.g., "JSS1-A"
+  classId: string; // e.g., "JSS1"
   parentId?: string;
   passportUrl?: string;
   promotionStatus: PromotionStatus;
@@ -158,4 +157,30 @@ export interface SchoolConfig {
     gradeLabel: string;
     remarkLabel: string;
   };
+}
+
+// --- Permission System Types ---
+
+export enum RequestType {
+    EDIT_RESULT = 'EDIT_RESULT',
+    EDIT_ATTENDANCE = 'EDIT_ATTENDANCE',
+    VIEW_RESULT_LIMIT = 'VIEW_RESULT_LIMIT'
+}
+
+export enum RequestStatus {
+    PENDING = 'PENDING',
+    APPROVED = 'APPROVED',
+    DECLINED = 'DECLINED',
+    CONSUMED = 'CONSUMED' // Used when the permission was used once and is now invalid
+}
+
+export interface AccessRequest {
+    id: string;
+    requesterId: string;
+    requesterName: string;
+    type: RequestType;
+    resourceId: string; // ID of the result, or "classId|date" for attendance, or "studentId" for view limit
+    details: string;
+    status: RequestStatus;
+    timestamp: string;
 }

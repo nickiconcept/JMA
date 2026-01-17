@@ -1,26 +1,24 @@
 
 import React, { useState } from 'react';
-import { ClassDefinition, User, UserRole, Student, Result, Subject, SchoolConfig, PsychomotorRecord, Term } from '../types';
+import { ClassDefinition, User, UserRole, Student, Result, Subject, SchoolConfig, PsychomotorRecord } from '../types';
 import Button from './Button';
 import StudentReportCard from './StudentReportCard';
 import { EyeIcon } from '@heroicons/react/24/solid';
-import { CURRENT_SESSION, CURRENT_TERM } from '../constants';
 
 interface Props {
   classes: ClassDefinition[];
-  users: User[]; // Needed to assign Form Masters
+  users: User[];
   onAdd: (cls: ClassDefinition) => void;
   onUpdate: (cls: ClassDefinition) => void;
   onDelete: (id: string) => void;
-  currentUser?: User; // Full user object to check role and assignments
-  // New props for Form Master View
+  currentUser?: User;
   students?: Student[];
   results?: Result[];
   subjects?: Subject[];
   schoolConfig?: SchoolConfig;
   psychomotorRecords?: PsychomotorRecord[];
-  onViewStudentResult?: (studentId: string) => boolean; // Function to check/increment limit
-  viewCounts?: Record<string, number>; // Map of studentId -> count
+  onViewStudentResult?: (studentId: string) => boolean; 
+  viewCounts?: Record<string, number>; 
 }
 
 const ClassManager: React.FC<Props> = ({ 
@@ -30,8 +28,6 @@ const ClassManager: React.FC<Props> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentClass, setCurrentClass] = useState<Partial<ClassDefinition>>({});
-  
-  // State for Form Master View
   const [viewingStudentId, setViewingStudentId] = useState<string | null>(null);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
@@ -43,7 +39,7 @@ const ClassManager: React.FC<Props> = ({
     if (currentClass.id && classes.some(c => c.id === currentClass.id && isEditing)) {
        onUpdate(currentClass as ClassDefinition);
     } else {
-       const newId = `${currentClass.name?.replace(/\s/g, '')}-${currentClass.arm}`;
+       const newId = currentClass.name?.replace(/\s/g, '').toUpperCase() || `CLS${Date.now()}`;
        onAdd({ ...currentClass, id: newId } as ClassDefinition);
     }
     setIsEditing(false);
@@ -56,9 +52,8 @@ const ClassManager: React.FC<Props> = ({
       const canView = onViewStudentResult(studentId);
       if (canView) {
           setViewingStudentId(studentId);
-      } else {
-          alert("View Limit Reached: You have already viewed this student's result 2 times. Contact Admin for assistance.");
       }
+      // If false, the parent component handles the request prompt
   };
 
   // --- Form Master Logic ---
@@ -88,7 +83,7 @@ const ClassManager: React.FC<Props> = ({
                       schoolConfig={schoolConfig}
                       psychomotorRecord={psychomotorRecords.find(p => p.studentId === student.id && p.session === schoolConfig?.activeSession && p.term === schoolConfig?.activeTerm)}
                       formMaster={currentUser}
-                      hidePrintButton={true} // Strictly hide print button
+                      hidePrintButton={true} 
                   />
               </div>
           );
@@ -105,10 +100,10 @@ const ClassManager: React.FC<Props> = ({
       return (
           <div className="space-y-6">
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                  <h2 className="text-2xl font-bold text-gray-800">My Class: {myClass.name} {myClass.arm}</h2>
+                  <h2 className="text-2xl font-bold text-gray-800">My Class: {myClass.name}</h2>
                   <p className="text-slate-500 text-sm mt-1">Manage and view students in your designated class.</p>
                   <p className="text-xs text-orange-600 mt-2 font-bold bg-orange-50 inline-block px-2 py-1 rounded border border-orange-100">
-                      Note: You can only view each student's detailed result 2 times.
+                      Limit: 2 full result views per student. Request admin permission for more.
                   </p>
               </div>
 
@@ -144,10 +139,9 @@ const ClassManager: React.FC<Props> = ({
                                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                       <button 
                                           onClick={() => attemptViewResult(s.id)}
-                                          disabled={views >= 2}
-                                          className={`flex items-center justify-end gap-1 ml-auto ${views >= 2 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-900'}`}
+                                          className={`flex items-center justify-end gap-1 ml-auto text-blue-600 hover:text-blue-900`}
                                       >
-                                          <EyeIcon className="h-4 w-4" /> View Result
+                                          <EyeIcon className="h-4 w-4" /> {views >= 2 ? 'Request View' : 'View Result'}
                                       </button>
                                   </td>
                               </tr>
@@ -175,7 +169,7 @@ const ClassManager: React.FC<Props> = ({
       {isEditing && isAdmin && (
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h3 className="text-lg font-bold mb-4">Add / Edit Class</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Class Name</label>
               <select 
@@ -193,21 +187,7 @@ const ClassManager: React.FC<Props> = ({
                 <option value="SSS 3">SSS 3</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Arm</label>
-              <select 
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2"
-                value={currentClass.arm || ''}
-                onChange={e => setCurrentClass({...currentClass, arm: e.target.value})}
-                required
-              >
-                <option value="">Select Arm</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="D">D</option>
-              </select>
-            </div>
+            {/* Arms Option Removed */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Form Master</label>
               <select 
@@ -221,7 +201,7 @@ const ClassManager: React.FC<Props> = ({
                 ))}
               </select>
             </div>
-            <div className="md:col-span-3 flex justify-end space-x-3 mt-4">
+            <div className="md:col-span-2 flex justify-end space-x-3 mt-4">
               <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
               <Button type="submit">Save Class</Button>
             </div>
@@ -242,7 +222,7 @@ const ClassManager: React.FC<Props> = ({
             return (
               <li key={c.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                 <div>
-                  <h4 className="text-lg font-bold text-gray-800">{c.name} {c.arm}</h4>
+                  <h4 className="text-lg font-bold text-gray-800">{c.name}</h4>
                   <p className="text-sm text-gray-500">
                     Form Master: <span className="font-medium text-green-700">{master ? master.name : 'Not Assigned'}</span>
                   </p>

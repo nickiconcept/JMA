@@ -2,17 +2,20 @@
 import React, { useState, useMemo } from 'react';
 import { Student, Attendance, ClassDefinition, Term, UserRole } from '../types';
 import Button from './Button';
-import { ChartBarIcon } from '@heroicons/react/24/solid';
+import { ChartBarIcon, LockClosedIcon } from '@heroicons/react/24/solid';
 
 interface Props {
   students: Student[];
   attendanceRecords: Attendance[];
   currentClass: ClassDefinition;
   onSaveAttendance: (records: Attendance[]) => void;
-  currentUserRole?: UserRole; // Added to check admin override
+  currentUserRole?: UserRole;
+  onRequestUnlock?: (classId: string, date: string) => void;
 }
 
-const AttendanceRegister: React.FC<Props> = ({ students, attendanceRecords, currentClass, onSaveAttendance, currentUserRole }) => {
+const AttendanceRegister: React.FC<Props> = ({ 
+    students, attendanceRecords, currentClass, onSaveAttendance, currentUserRole, onRequestUnlock 
+}) => {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const [draftRecords, setDraftRecords] = useState<Record<string, 'PRESENT' | 'ABSENT' | 'LATE'>>({});
@@ -25,6 +28,7 @@ const AttendanceRegister: React.FC<Props> = ({ students, attendanceRecords, curr
   const hasExistingData = existingRecordsForDate.length > 0;
   
   // Locked if data exists AND user is NOT admin
+  // For requesting unlock, we pass this up to App.tsx to check if an APPROVED request exists
   const isLocked = hasExistingData && !isAdmin;
 
   // Initialize draft from existing records
@@ -83,7 +87,7 @@ const AttendanceRegister: React.FC<Props> = ({ students, attendanceRecords, curr
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-bold text-gray-800">Attendance Register</h2>
-            <p className="text-sm text-gray-500">Class: {currentClass.name} {currentClass.arm}</p>
+            <p className="text-sm text-gray-500">Class: {currentClass.name}</p>
           </div>
           <div className="flex items-center space-x-2">
               <label className="text-sm font-medium text-gray-700">Date:</label>
@@ -137,14 +141,23 @@ const AttendanceRegister: React.FC<Props> = ({ students, attendanceRecords, curr
         ) : (
             <>
                 {isLocked && (
-                    <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                        <div>
-                            <p className="font-bold">Attendance Locked</p>
-                            <p>Attendance for {selectedDate} has already been submitted. Only Administrators can modify daily attendance after submission.</p>
+                    <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <LockClosedIcon className="h-5 w-5" />
+                            <div>
+                                <p className="font-bold">Attendance Locked</p>
+                                <p>Attendance for {selectedDate} has already been submitted.</p>
+                            </div>
                         </div>
+                        {onRequestUnlock && (
+                            <Button 
+                                variant="outline" 
+                                className="text-xs bg-white border-red-300 text-red-700 hover:bg-red-50"
+                                onClick={() => onRequestUnlock(currentClass.id, selectedDate)}
+                            >
+                                Request Unlock
+                            </Button>
+                        )}
                     </div>
                 )}
 

@@ -19,10 +19,10 @@ import PsychomotorManager from './components/PsychomotorManager';
 import SchoolConfigManager from './components/SchoolConfigManager';
 import StudentResultReview from './components/StudentResultReview';
 
-import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term } from './types';
+import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance, mockSchoolConfig, mockPsychomotor } from './services/mockData';
 import { MOCK_LOGS_INITIAL } from './constants';
-import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, InformationCircleIcon, ArrowLeftIcon, KeyIcon } from '@heroicons/react/24/solid';
+import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, InformationCircleIcon, ArrowLeftIcon, KeyIcon, BellIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 // --- Login Component ---
 interface LoginScreenProps {
@@ -264,6 +264,9 @@ const App: React.FC = () => {
   const [psychomotor, setPsychomotor] = useState<PsychomotorRecord[]>(() => loadFromStorage('jma_psychomotor', mockPsychomotor));
   // Record map: "userId_studentId": count
   const [viewLogs, setViewLogs] = useState<Record<string, number>>(() => loadFromStorage('jma_view_logs', {}));
+  
+  // Permission Requests State
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>(() => loadFromStorage('jma_access_requests', []));
 
   useEffect(() => localStorage.setItem('jma_users', JSON.stringify(users)), [users]);
   useEffect(() => localStorage.setItem('jma_students', JSON.stringify(students)), [students]);
@@ -276,6 +279,7 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('jma_config', JSON.stringify(schoolConfig)), [schoolConfig]);
   useEffect(() => localStorage.setItem('jma_psychomotor', JSON.stringify(psychomotor)), [psychomotor]);
   useEffect(() => localStorage.setItem('jma_view_logs', JSON.stringify(viewLogs)), [viewLogs]);
+  useEffect(() => localStorage.setItem('jma_access_requests', JSON.stringify(accessRequests)), [accessRequests]);
 
   const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
   const [loginCreds, setLoginCreds] = useState({ email: '', password: '', admissionNo: '', pin: '' });
@@ -300,6 +304,46 @@ const App: React.FC = () => {
       ipAddress: '127.0.0.1'
     };
     setLogs(prev => [newLog, ...prev]);
+  };
+
+  // --- Permission Request Logic ---
+  
+  const createAccessRequest = (type: RequestType, resourceId: string, details: string) => {
+      if (!user) return;
+      
+      const newRequest: AccessRequest = {
+          id: `req-${Date.now()}`,
+          requesterId: user.id,
+          requesterName: user.name,
+          type,
+          resourceId,
+          details,
+          status: RequestStatus.PENDING,
+          timestamp: new Date().toISOString()
+      };
+      
+      setAccessRequests(prev => [newRequest, ...prev]);
+      alert("Permission request sent to Admin.");
+      addLog(user.id, user.role, 'REQUEST_ACCESS', `Requested ${type} for ${resourceId}`);
+  };
+
+  const handleApproveRequest = (requestId: string) => {
+      setAccessRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: RequestStatus.APPROVED } : r));
+      addLog(user!.id, user!.role, 'APPROVE_ACCESS', `Approved request ${requestId}`);
+  };
+
+  const handleDeclineRequest = (requestId: string) => {
+      setAccessRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: RequestStatus.DECLINED } : r));
+      addLog(user!.id, user!.role, 'DECLINE_ACCESS', `Declined request ${requestId}`);
+  };
+
+  const hasApprovedPermission = (type: RequestType, resourceId: string): AccessRequest | undefined => {
+      return accessRequests.find(r => 
+          r.requesterId === user?.id && 
+          r.resourceId === resourceId && 
+          r.type === type && 
+          r.status === RequestStatus.APPROVED
+      );
   };
   
   const handleAuthSuccess = (authenticatedUser: User) => {
@@ -402,11 +446,31 @@ const App: React.FC = () => {
   };
 
   const handleSaveResult = (newResult: Result) => {
-    // LOCKING LOGIC: If user is NOT Admin, force lock true on every save
+    // LOCKING LOGIC:
     const isAdmin = user?.role === UserRole.ADMIN;
+    let isLocked = isAdmin ? newResult.isLocked : true;
+
+    // Check for existing locked result
+    const existing = results.find(r => r.id === newResult.id);
+    if (existing && existing.isLocked && !isAdmin) {
+        // Check for permission
+        const permission = hasApprovedPermission(RequestType.EDIT_RESULT, existing.id);
+        if (permission) {
+            isLocked = true; // Still save as locked, but allow the save now.
+            // Consume permission
+            setAccessRequests(prev => prev.map(r => r.id === permission.id ? { ...r, status: RequestStatus.CONSUMED } : r));
+        } else {
+            // Should be caught by UI, but double check
+            if (confirm("This result is locked. Request permission from Admin to edit?")) {
+                createAccessRequest(RequestType.EDIT_RESULT, existing.id, `Request to edit result for ${newResult.studentId} in ${newResult.subjectId}`);
+            }
+            return;
+        }
+    }
+
     const resultToSave = { 
         ...newResult, 
-        isLocked: isAdmin ? newResult.isLocked : true // Force lock for non-admins
+        isLocked
     };
 
     setResults(prev => {
@@ -449,14 +513,41 @@ const App: React.FC = () => {
       alert("Attendance Saved!");
   };
 
+  const handleAttendanceUnlockRequest = (classId: string, date: string) => {
+      const resourceId = `${classId}|${date}`;
+      const permission = hasApprovedPermission(RequestType.EDIT_ATTENDANCE, resourceId);
+      
+      if (permission) {
+          alert("You have an unused approved permission. You can edit now.");
+      } else {
+          if (confirm(`Request permission to edit attendance for ${date}?`)) {
+              createAccessRequest(RequestType.EDIT_ATTENDANCE, resourceId, `Unlock attendance for class ${classId} on ${date}`);
+          }
+      }
+  };
+
   const handleCheckViewLimit = (studentId: string) => {
       if (!user) return false;
-      if (user.role === UserRole.ADMIN || user.role === UserRole.PRINCIPAL) return true; // No limit for admin/principal
+      if (user.role === UserRole.ADMIN || user.role === UserRole.PRINCIPAL) return true; 
 
       const key = `${user.id}_${studentId}`;
       const currentCount = viewLogs[key] || 0;
 
       if (currentCount >= 2) {
+          // Check permission
+          const permission = hasApprovedPermission(RequestType.VIEW_RESULT_LIMIT, studentId);
+          if (permission) {
+              // Consume permission (maybe allow 2 more views?)
+              // For simplicity, just allow this view and keep permission 'CONSUMED' 
+              setAccessRequests(prev => prev.map(r => r.id === permission.id ? { ...r, status: RequestStatus.CONSUMED } : r));
+              // Reset log slightly? or just proceed. 
+              // Better: don't increment log if permitted, or just return true.
+              return true; 
+          }
+
+          if (confirm("View limit reached (2/2). Request Admin permission to view again?")) {
+              createAccessRequest(RequestType.VIEW_RESULT_LIMIT, studentId, `Request additional views for student ${studentId}`);
+          }
           return false;
       }
 
@@ -501,6 +592,8 @@ const App: React.FC = () => {
     // Add strict guard clause to satisfy TypeScript
     if (!user) return null;
 
+    const pendingRequests = accessRequests.filter(r => r.status === RequestStatus.PENDING);
+
     return (
     <div className="space-y-8">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between">
@@ -524,6 +617,41 @@ const App: React.FC = () => {
             </div>
         </div>
         
+        {/* Admin Action Center */}
+        {user.role === UserRole.ADMIN && pendingRequests.length > 0 && (
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-amber-200">
+                <div className="flex items-center gap-2 mb-4">
+                    <BellIcon className="h-6 w-6 text-amber-500" />
+                    <h3 className="text-lg font-bold text-slate-900">Action Center ({pendingRequests.length} pending requests)</h3>
+                </div>
+                <div className="space-y-3">
+                    {pendingRequests.map(req => (
+                        <div key={req.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-amber-50 rounded-lg border border-amber-100 gap-4">
+                            <div>
+                                <p className="text-sm font-bold text-slate-800">{req.requesterName} <span className="text-slate-500 font-normal">requests</span> {req.type.replace('_', ' ')}</p>
+                                <p className="text-xs text-slate-600 mt-0.5">{req.details}</p>
+                                <p className="text-[10px] text-slate-400 mt-1">{new Date(req.timestamp).toLocaleString()}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => handleApproveRequest(req.id)}
+                                    className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700"
+                                >
+                                    <CheckIcon className="h-4 w-4 mr-1" /> Approve
+                                </button>
+                                <button 
+                                    onClick={() => handleDeclineRequest(req.id)}
+                                    className="flex items-center px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded text-xs font-bold hover:bg-red-50"
+                                >
+                                    <XMarkIcon className="h-4 w-4 mr-1" /> Decline
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
         {user.role !== UserRole.STUDENT && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
@@ -613,10 +741,8 @@ const App: React.FC = () => {
         if (selectedClassId) {
             const selectedClass = classes.find(c => c.id === selectedClassId);
             if (selectedClass) {
-                const classLevel = selectedClass.name; 
-                visibleSubjects = visibleSubjects.filter(s => 
-                    !s.compatibleLevels || s.compatibleLevels.length === 0 || s.compatibleLevels.includes(classLevel)
-                );
+                // Filter compatible subjects logic if needed based on new class naming (removed Arm)
+                // Assuming basic mapping for now or all subjects available
             }
         }
 
@@ -664,7 +790,7 @@ const App: React.FC = () => {
                                     value={selectedClassId || ''}
                                 >
                                     <option value="">Select Class...</option>
-                                    {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name} {c.arm}</option>)}
+                                    {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                             </div>
                             <div>
@@ -711,7 +837,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="text-right">
                     <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Class</p>
-                    <p className="font-bold text-sm md:text-base text-slate-800">{classes.find(c => c.id === selectedClassId)?.name} {classes.find(c => c.id === selectedClassId)?.arm}</p>
+                    <p className="font-bold text-sm md:text-base text-slate-800">{classes.find(c => c.id === selectedClassId)?.name}</p>
                 </div>
             </div>
             
@@ -719,19 +845,23 @@ const App: React.FC = () => {
                 {classStudents.map(student => {
                     const existing = results.find(r => r.studentId === student.id && r.subjectId === selectedSubjectId && r.session === currentSession && r.term === currentTerm);
                     
-                    // STRICT LOCKING LOGIC:
-                    // 1. If user is Admin, never read-only (unless business logic changes)
-                    // 2. If user is NOT Admin, AND result exists, it's read-only (submit once rule)
-                    // 3. If restricted mode (wrong session/term), read-only
-                    
+                    // STRICT LOCKING LOGIC with Permission Check
                     let isReadOnly = false;
+                    let canRequestUnlock = false;
 
                     if (user?.role === UserRole.ADMIN) {
                         isReadOnly = false;
                     } else {
                         // For non-admins
                         if (existing) {
-                            isReadOnly = true; // Submit once rule: if exists, locked.
+                            // Check if permission granted
+                            const hasPerm = hasApprovedPermission(RequestType.EDIT_RESULT, existing.id);
+                            if (hasPerm) {
+                                isReadOnly = false;
+                            } else {
+                                isReadOnly = true; // Submit once rule
+                                canRequestUnlock = true;
+                            }
                         }
                         if (isRestricted && (currentSession !== schoolConfig.activeSession || currentTerm !== schoolConfig.activeTerm)) {
                             isReadOnly = true;
@@ -739,7 +869,23 @@ const App: React.FC = () => {
                     }
 
                     return (
-                        <div key={student.id}>
+                        <div key={student.id} className="relative">
+                            {/* Request Overlay for locked items */}
+                            {isReadOnly && canRequestUnlock && (
+                                <div className="absolute top-2 right-2 z-10">
+                                    <button 
+                                        onClick={() => {
+                                            if (confirm("Request permission to edit this result?")) {
+                                                createAccessRequest(RequestType.EDIT_RESULT, existing!.id, `Edit result for ${student.name} in ${subjectName}`);
+                                            }
+                                        }}
+                                        className="text-xs bg-white border border-blue-200 text-blue-600 px-2 py-1 rounded shadow-sm hover:bg-blue-50"
+                                    >
+                                        Request Edit
+                                    </button>
+                                </div>
+                            )}
+
                             <ResultEntry 
                                 student={student} 
                                 subject={subjectName || ''}
@@ -750,7 +896,7 @@ const App: React.FC = () => {
                                 isReadOnly={isReadOnly}
                                 onSave={(r) => {
                                     handleSaveResult(r);
-                                    alert('Saved Successfully! Result is now locked.');
+                                    alert('Saved Successfully!');
                                 }}
                             />
                         </div>
@@ -773,6 +919,9 @@ const App: React.FC = () => {
 
      const classStudents = students.filter(s => s.classId === targetClass.id);
 
+     // Check for approved unlock permissions for the attendance register component to use
+     // This is passed down via props or handled in the save logic wrapper, here we pass the handler
+     
      return (
          <div className="space-y-4">
              <BackButton />
@@ -782,6 +931,7 @@ const App: React.FC = () => {
                 attendanceRecords={attendance}
                 onSaveAttendance={handleSaveAttendance}
                 currentUserRole={user?.role}
+                onRequestUnlock={handleAttendanceUnlockRequest}
              />
          </div>
      );
