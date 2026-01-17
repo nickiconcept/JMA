@@ -345,6 +345,11 @@ const App: React.FC = () => {
           r.status === RequestStatus.APPROVED
       );
   };
+
+  const checkAttendancePermission = (classId: string, date: string) => {
+      const resourceId = `${classId}|${date}`;
+      return !!hasApprovedPermission(RequestType.EDIT_ATTENDANCE, resourceId);
+  };
   
   const handleAuthSuccess = (authenticatedUser: User) => {
       setUser(authenticatedUser);
@@ -537,11 +542,10 @@ const App: React.FC = () => {
           // Check permission
           const permission = hasApprovedPermission(RequestType.VIEW_RESULT_LIMIT, studentId);
           if (permission) {
-              // Consume permission (maybe allow 2 more views?)
-              // For simplicity, just allow this view and keep permission 'CONSUMED' 
+              // Reset count to give them fresh access
+              setViewLogs(prev => ({ ...prev, [key]: 0 }));
+              // Consume permission
               setAccessRequests(prev => prev.map(r => r.id === permission.id ? { ...r, status: RequestStatus.CONSUMED } : r));
-              // Reset log slightly? or just proceed. 
-              // Better: don't increment log if permitted, or just return true.
               return true; 
           }
 
@@ -932,6 +936,7 @@ const App: React.FC = () => {
                 onSaveAttendance={handleSaveAttendance}
                 currentUserRole={user?.role}
                 onRequestUnlock={handleAttendanceUnlockRequest}
+                checkUnlockPermission={checkAttendancePermission}
              />
          </div>
      );

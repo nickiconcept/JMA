@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Student, Attendance, ClassDefinition, Term, UserRole } from '../types';
 import Button from './Button';
-import { ChartBarIcon, LockClosedIcon } from '@heroicons/react/24/solid';
+import { ChartBarIcon, LockClosedIcon, LockOpenIcon } from '@heroicons/react/24/solid';
 
 interface Props {
   students: Student[];
@@ -11,10 +11,11 @@ interface Props {
   onSaveAttendance: (records: Attendance[]) => void;
   currentUserRole?: UserRole;
   onRequestUnlock?: (classId: string, date: string) => void;
+  checkUnlockPermission?: (classId: string, date: string) => boolean;
 }
 
 const AttendanceRegister: React.FC<Props> = ({ 
-    students, attendanceRecords, currentClass, onSaveAttendance, currentUserRole, onRequestUnlock 
+    students, attendanceRecords, currentClass, onSaveAttendance, currentUserRole, onRequestUnlock, checkUnlockPermission 
 }) => {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
@@ -27,9 +28,11 @@ const AttendanceRegister: React.FC<Props> = ({
   const existingRecordsForDate = attendanceRecords.filter(a => a.date === selectedDate && a.classId === currentClass.id);
   const hasExistingData = existingRecordsForDate.length > 0;
   
-  // Locked if data exists AND user is NOT admin
-  // For requesting unlock, we pass this up to App.tsx to check if an APPROVED request exists
-  const isLocked = hasExistingData && !isAdmin;
+  // Check permission
+  const isPermissionGranted = checkUnlockPermission ? checkUnlockPermission(currentClass.id, selectedDate) : false;
+
+  // Locked if data exists AND user is NOT admin AND no permission granted
+  const isLocked = hasExistingData && !isAdmin && !isPermissionGranted;
 
   // Initialize draft from existing records
   React.useEffect(() => {
@@ -140,7 +143,7 @@ const AttendanceRegister: React.FC<Props> = ({
             </div>
         ) : (
             <>
-                {isLocked && (
+                {isLocked ? (
                     <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <LockClosedIcon className="h-5 w-5" />
@@ -159,6 +162,13 @@ const AttendanceRegister: React.FC<Props> = ({
                             </Button>
                         )}
                     </div>
+                ) : (
+                    hasExistingData && !isAdmin && (
+                        <div className="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm flex items-center gap-2">
+                            <LockOpenIcon className="h-5 w-5" />
+                            <p className="font-bold">Editing Enabled (Admin Permission Granted)</p>
+                        </div>
+                    )
                 )}
 
                 <div className="flex space-x-2 mb-4">
