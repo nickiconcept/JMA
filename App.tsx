@@ -512,7 +512,18 @@ const App: React.FC = () => {
   };
 
   const handleSaveAttendance = (newRecords: Attendance[]) => {
-      const filtered = attendance.filter(a => !(a.classId === newRecords[0].classId && a.date === newRecords[0].date));
+      if (newRecords.length === 0) return;
+      
+      const { classId, date } = newRecords[0];
+      
+      // Consume permission if exists (locking it back after this save)
+      const resourceId = `${classId}|${date}`;
+      const permission = hasApprovedPermission(RequestType.EDIT_ATTENDANCE, resourceId);
+      if (permission) {
+          setAccessRequests(prev => prev.map(r => r.id === permission.id ? { ...r, status: RequestStatus.CONSUMED } : r));
+      }
+
+      const filtered = attendance.filter(a => !(a.classId === classId && a.date === date));
       setAttendance([...filtered, ...newRecords]);
       addLog(user?.id || 'sys', user?.role || UserRole.FORM_MASTER, 'MARK_ATTENDANCE', `Marked attendance for ${newRecords.length} students`);
       alert("Attendance Saved!");
