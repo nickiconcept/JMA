@@ -30,6 +30,13 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
 
   const classStudents = students.filter(s => s.classId === selectedClassId);
 
+  // Filter results for the whole class to calculate statistics
+  const classResults = results.filter(r => 
+      students.find(s => s.id === r.studentId)?.classId === selectedClassId &&
+      r.session === schoolConfig.activeSession && 
+      r.term === schoolConfig.activeTerm
+  );
+
   const handleBulkPrint = () => {
     if (bulkPrintRef.current) {
       const originalContents = document.body.innerHTML;
@@ -144,12 +151,14 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
           {mode === 'INDIVIDUAL' && selectedStudentId && (
               <StudentReportCard 
                  student={students.find(s => s.id === selectedStudentId)!}
-                 results={results.filter(r => r.studentId === selectedStudentId)}
+                 results={results.filter(r => r.studentId === selectedStudentId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)}
                  subjects={subjects}
                  classes={classes}
                  schoolConfig={schoolConfig}
                  psychomotorRecord={getPsychomotor(selectedStudentId)}
                  formMaster={getFormMaster(selectedClassId)}
+                 classResults={classResults}
+                 allResults={results.filter(r => r.studentId === selectedStudentId)}
               />
           )}
 
@@ -167,13 +176,15 @@ const ResultPrintingManager: React.FC<Props> = ({ user, classes, students, resul
                         <StudentReportCard 
                             key={student.id}
                             student={student}
-                            results={results.filter(r => r.studentId === student.id)}
+                            results={results.filter(r => r.studentId === student.id && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)}
                             subjects={subjects}
                             classes={classes}
                             hidePrintButton={true}
                             schoolConfig={schoolConfig}
                             psychomotorRecord={getPsychomotor(student.id)}
                             formMaster={getFormMaster(student.classId)}
+                            classResults={classResults}
+                            allResults={results.filter(r => r.studentId === student.id)}
                         />
                     ))}
                 </div>

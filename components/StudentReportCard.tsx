@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Result, Student, Subject, ClassDefinition, PsychomotorRecord, SchoolConfig, User, Term } from '../types';
 import { CURRENT_SESSION, CURRENT_TERM } from '../constants';
 
@@ -13,11 +13,12 @@ interface Props {
   psychomotorRecord?: PsychomotorRecord;
   formMaster?: User; // Passed in to show specific FM details
   allResults?: Result[]; // Needed for cumulative calc if not provided in 'results'
+  classResults?: Result[]; // Needed for class statistics (positions, averages)
 }
 
 const StudentReportCard: React.FC<Props> = ({ 
   student, results, subjects, classes, hidePrintButton = false,
-  schoolConfig, psychomotorRecord, formMaster, allResults
+  schoolConfig, psychomotorRecord, formMaster, allResults, classResults
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +54,56 @@ const StudentReportCard: React.FC<Props> = ({
       // Strictly dividing by 3 for annual average standard
       return ((t1 + t2 + currentTotal) / 3).toFixed(1);
   };
+
+  // --- Statistics Logic ---
+  const stats = useMemo(() => {
+      if (!classResults || classResults.length === 0) return null;
+
+      // Group by student to find averages
+      const studentAverages: { id: string, avg: number }[] = [];
+      const studentIds: string[] = Array.from(new Set(classResults.map(r => r.studentId)));
+      
+      studentIds.forEach(id => {
+          const sRes = classResults.filter(r => r.studentId === id);
+          if (sRes.length > 0) {
+              const total = sRes.reduce((a, b) => a + b.total, 0);
+              studentAverages.push({ id, avg: total / sRes.length });
+          }
+      });
+
+      // Sort Descending
+      studentAverages.sort((a, b) => b.avg - a.avg);
+
+      const position = studentAverages.findIndex(s => s.id === student.id) + 1;
+      const totalStudents = studentIds.length;
+      const highestAvg = studentAverages.length > 0 ? studentAverages[0].avg.toFixed(1) : '-';
+      const lowestAvg = studentAverages.length > 0 ? studentAverages[studentAverages.length - 1].avg.toFixed(1) : '-';
+
+      // Subject Specific Stats
+      const subjectStats: Record<string, { avg: string, high: number, low: number, pos: string }> = {};
+      
+      subjects.forEach(sub => {
+          const subResults = classResults.filter(r => r.subjectId === sub.id);
+          if (subResults.length > 0) {
+              const subTotal = subResults.reduce((a, b) => a + b.total, 0);
+              const subAvg = (subTotal / subResults.length).toFixed(1);
+              const high = Math.max(...subResults.map(r => r.total));
+              const low = Math.min(...subResults.map(r => r.total));
+              
+              // Sort for position
+              const sortedSubRes = [...subResults].sort((a, b) => b.total - a.total);
+              const posIndex = sortedSubRes.findIndex(r => r.studentId === student.id);
+              const pos = posIndex !== -1 ? `${posIndex + 1}/${subResults.length}` : '-';
+
+              subjectStats[sub.id] = { avg: subAvg, high, low, pos };
+          } else {
+              subjectStats[sub.id] = { avg: '-', high: 0, low: 0, pos: '-' };
+          }
+      });
+
+      return { position, totalStudents, highestAvg, lowestAvg, subjectStats };
+  }, [classResults, student.id, subjects]);
+
 
   const renderRating = (label: string, score: number) => (
     <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
@@ -91,6 +142,11 @@ const StudentReportCard: React.FC<Props> = ({
   const labels = config.reportCardLayout || {
       subjectLabel: 'Subject', ca1Label: 'CA 1', ca2Label: 'CA 2', assignLabel: 'Assign', 
       notesLabel: 'Notes', examLabel: 'Exam', totalLabel: 'Total', gradeLabel: 'Grade', remarkLabel: 'Remark'
+  };
+
+  const opts = config.reportOptions || {
+      showPosition: true, showTotalStudents: true, showClassStats: true, 
+      showSubjectAverage: true, showSubjectMinMax: true, showSubjectPosition: true 
   };
 
   return (
@@ -179,13 +235,24 @@ const StudentReportCard: React.FC<Props> = ({
                     <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Class</p>
                     <p className="text-sm font-bold text-gray-900">{className}</p>
                   </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Attendance</p>
-                    <p className="text-sm font-bold text-gray-900">{psychomotorRecord?.affective.attendance ? `${psychomotorRecord.affective.attendance}/5` : '-'}</p>
-                  </div>
+                  {opts.showPosition && stats && (
+                      <div>
+                        <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Position</p>
+                        <p className="text-sm font-bold text-blue-700">
+                            {stats.position} 
+                            {opts.showTotalStudents && <span className="text-gray-400 font-normal"> / {stats.totalStudents}</span>}
+                        </p>
+                      </div>
+                  )}
               </div>
               
               <div className="flex gap-3 border-l border-gray-200 pl-4 items-center">
+                  {opts.showClassStats && stats && (
+                      <div className="text-center mr-2 hidden md:block">
+                          <p className="text-[8px] uppercase text-gray-400">Class High/Low</p>
+                          <p className="text-xs font-bold text-gray-600">{stats.highestAvg} / {stats.lowestAvg}</p>
+                      </div>
+                  )}
                   <div className="text-center">
                     <p className="text-[9px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Total</p>
                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs mx-auto border-2 border-white shadow-sm">
@@ -216,6 +283,12 @@ const StudentReportCard: React.FC<Props> = ({
                     <th className="py-2 px-2 text-center font-bold text-blue-900 bg-blue-50/30 text-sm">{labels.totalLabel}</th>
                     {isThirdTerm && <th className="py-2 px-2 text-center bg-purple-50 text-purple-800">Ann. Avg</th>}
                     <th className="py-2 px-1 text-center">{labels.gradeLabel}</th>
+                    
+                    {/* Optional Columns */}
+                    {opts.showSubjectPosition && <th className="py-2 px-1 text-center bg-yellow-50 text-yellow-800">Pos</th>}
+                    {opts.showSubjectAverage && <th className="py-2 px-1 text-center bg-slate-50 text-slate-600">Cls Avg</th>}
+                    {opts.showSubjectMinMax && <th className="py-2 px-1 text-center bg-slate-50 text-slate-600">Hi/Lo</th>}
+
                     <th className="py-2 px-3 text-left w-1/4">{labels.remarkLabel}</th>
                   </tr>
                 </thead>
@@ -225,6 +298,8 @@ const StudentReportCard: React.FC<Props> = ({
                     const caTotal = res.assessment.ca1 + res.assessment.ca2 + res.assessment.assignment + res.assessment.notes;
                     const annualAvg = calculateAnnualAvg(res.subjectId, res.total);
                     
+                    const subStat = stats?.subjectStats[res.subjectId];
+
                     return (
                       <tr key={res.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                         <td className="py-2 px-3 font-medium text-gray-800 truncate">{subject?.name || res.subjectId}</td>
@@ -245,6 +320,12 @@ const StudentReportCard: React.FC<Props> = ({
                             {res.grade}
                           </span>
                         </td>
+
+                        {/* Optional Data */}
+                        {opts.showSubjectPosition && <td className="py-2 px-1 text-center text-[10px] bg-yellow-50">{subStat?.pos}</td>}
+                        {opts.showSubjectAverage && <td className="py-2 px-1 text-center text-[10px] bg-slate-50">{subStat?.avg}</td>}
+                        {opts.showSubjectMinMax && <td className="py-2 px-1 text-center text-[9px] bg-slate-50">{subStat ? `${subStat.high}/${subStat.low}` : '-'}</td>}
+
                         <td className="py-2 px-3 text-[10px] italic text-gray-500 truncate max-w-[150px]">{res.teacherRemark}</td>
                       </tr>
                     );

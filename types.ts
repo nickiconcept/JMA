@@ -109,6 +109,7 @@ export interface StaffAttendance {
 export interface AuditLog {
   id: string;
   userId: string;
+  userName?: string; // Added
   userRole: UserRole;
   action: string;
   details: string;
@@ -185,6 +186,14 @@ export interface SchoolConfig {
     totalLabel: string;
     gradeLabel: string;
     remarkLabel: string;
+  };
+  reportOptions?: {
+    showPosition: boolean;
+    showTotalStudents: boolean;
+    showClassStats: boolean; // Highest/Lowest Avg
+    showSubjectAverage: boolean;
+    showSubjectMinMax: boolean;
+    showSubjectPosition: boolean;
   };
   // Custom Skills Configuration
   customSkills?: SkillDefinition[];

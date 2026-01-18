@@ -328,9 +328,11 @@ const App: React.FC = () => {
   const [adminTermFilter, setAdminTermFilter] = useState<Term>(schoolConfig.activeTerm);
 
   const addLog = (userId: string, role: string, action: string, details: string) => {
+    const userObj = users.find(u => u.id === userId);
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
       userId, 
+      userName: userObj ? userObj.name : (role === 'STUDENT' ? 'Student' : 'Unknown'),
       userRole: role as UserRole,
       action, 
       details,
@@ -1301,6 +1303,11 @@ const App: React.FC = () => {
                 student={students.find(s => s.id === user!.id)!} 
                 results={results.filter(r => r.studentId === user!.id && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)} 
                 allResults={results.filter(r => r.studentId === user!.id)}
+                classResults={results.filter(r => 
+                    students.find(s => s.id === r.studentId)?.classId === students.find(s => s.id === user!.id)?.classId &&
+                    r.session === schoolConfig.activeSession && 
+                    r.term === schoolConfig.activeTerm
+                )}
                 subjects={subjects}
                 classes={classes}
                 schoolConfig={schoolConfig}
