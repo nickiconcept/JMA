@@ -21,6 +21,7 @@ import StudentResultReview from './components/StudentResultReview';
 import LandingPage from './components/LandingPage';
 import StaffAttendancePanel from './components/StaffAttendancePanel';
 import AdminStaffAttendance from './components/AdminStaffAttendance';
+import ReportsDashboard from './components/ReportsDashboard';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance, mockSchoolConfig, mockPsychomotor } from './services/mockData';
@@ -294,6 +295,25 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('jma_access_requests', JSON.stringify(accessRequests)), [accessRequests]);
   useEffect(() => localStorage.setItem('jma_staff_attendance', JSON.stringify(staffAttendance)), [staffAttendance]);
 
+  // Session Persistence Logic
+  useEffect(() => {
+    const sessionStr = localStorage.getItem('jma_session');
+    if (sessionStr) {
+        try {
+            const session = JSON.parse(sessionStr);
+            const now = new Date().getTime();
+            if (session.user && session.expiry > now) {
+                setUser(session.user);
+                // Optional: Restore view or default to dashboard
+            } else {
+                localStorage.removeItem('jma_session');
+            }
+        } catch(e) {
+            console.error("Session parse error", e);
+        }
+    }
+  }, []);
+
   const [authView, setAuthView] = useState<'LANDING' | 'LOGIN'>('LANDING'); // New state for Landing Page
   const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
   const [loginCreds, setLoginCreds] = useState({ email: '', password: '', admissionNo: '', pin: '' });
@@ -321,7 +341,6 @@ const App: React.FC = () => {
   };
 
   // --- Permission Request Logic ---
-  // ... (rest of the logic remains the same)
   const createAccessRequest = (type: RequestType, resourceId: string, details: string) => {
       if (!user) return;
       
@@ -366,6 +385,10 @@ const App: React.FC = () => {
   };
   
   const handleAuthSuccess = (authenticatedUser: User) => {
+      // Set session expiry to 30 minutes from now
+      const expiry = new Date().getTime() + (30 * 60 * 1000);
+      localStorage.setItem('jma_session', JSON.stringify({ user: authenticatedUser, expiry }));
+      
       setUser(authenticatedUser);
       setView('dashboard');
       addLog(authenticatedUser.id, authenticatedUser.role, 'LOGIN_SUCCESS', 'User login successful');
@@ -448,6 +471,7 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
      if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
+     localStorage.removeItem('jma_session');
      setUser(null);
      setView('login');
      setAuthView('LANDING'); // Reset to landing on logout
@@ -1035,6 +1059,23 @@ const App: React.FC = () => {
               />
           </div>
       )}
+
+      {/* Unified Reports Dashboard */}
+      {view === 'reports' && (
+          <div className="space-y-4">
+              <BackButton />
+              <ReportsDashboard 
+                 user={user!}
+                 students={students}
+                 results={results}
+                 classes={classes}
+                 subjects={subjects}
+                 schoolConfig={schoolConfig}
+                 psychomotorRecords={psychomotor}
+                 users={users}
+              />
+          </div>
+      )}
       
       {view === 'staff_manager' && (
           <div className="space-y-4">
@@ -1194,6 +1235,8 @@ const App: React.FC = () => {
                 records={psychomotor}
                 userRole={user!.role}
                 assignedClassIds={user!.assignedClassIds}
+                config={schoolConfig}
+                onUpdateConfig={(cfg) => setSchoolConfig(cfg)}
                 onSave={(record) => {
                 setPsychomotor(prev => {
                     const idx = prev.findIndex(r => r.id === record.id);

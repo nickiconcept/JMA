@@ -131,12 +131,14 @@ export interface PsychomotorRecord {
   studentId: string;
   session: string;
   term: Term;
+  // Legacy support plus dynamic
   affective: {
     punctuality: number;
     attendance: number;
     reliability: number;
     neatness: number;
     politeness: number;
+    [key: string]: number; // Allow dynamic keys
   };
   psychomotor: {
     handwriting: number;
@@ -144,7 +146,14 @@ export interface PsychomotorRecord {
     communication: number;
     creativity: number;
     leadership: number;
+    [key: string]: number; // Allow dynamic keys
   };
+}
+
+export interface SkillDefinition {
+    id: string; // key
+    name: string; // label
+    category: 'AFFECTIVE' | 'PSYCHOMOTOR';
 }
 
 export interface SchoolConfig {
@@ -177,6 +186,8 @@ export interface SchoolConfig {
     gradeLabel: string;
     remarkLabel: string;
   };
+  // Custom Skills Configuration
+  customSkills?: SkillDefinition[];
 }
 
 // --- Permission System Types ---
