@@ -18,8 +18,10 @@ import PromotionManager from './components/PromotionManager';
 import PsychomotorManager from './components/PsychomotorManager';
 import SchoolConfigManager from './components/SchoolConfigManager';
 import StudentResultReview from './components/StudentResultReview';
+import LandingPage from './components/LandingPage';
+import StaffAttendancePanel from './components/StaffAttendancePanel';
 
-import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType } from './types';
+import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance, mockSchoolConfig, mockPsychomotor } from './services/mockData';
 import { MOCK_LOGS_INITIAL } from './constants';
 import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, InformationCircleIcon, ArrowLeftIcon, KeyIcon, BellIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
@@ -35,18 +37,25 @@ interface LoginScreenProps {
   showPassword: boolean;
   setShowPassword: (b: boolean) => void;
   isAuthenticating: boolean;
+  onBack: () => void; // Added onBack prop
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({
   loginTab, setLoginTab, loginCreds, setLoginCreds, 
-  performStudentCheck, performStaffLogin, showPassword, setShowPassword, isAuthenticating
+  performStudentCheck, performStaffLogin, showPassword, setShowPassword, isAuthenticating, onBack
 }) => {
   // text-base on mobile prevents iOS zoom, sm:text-sm on desktop
   const inputClass = "appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 text-base sm:text-sm transition-all";
   
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:px-6 lg:px-8 font-sans">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6 md:mb-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6 md:mb-8 relative">
+            <button 
+                onClick={onBack}
+                className="absolute left-4 top-0 text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-1 text-sm font-medium"
+            >
+                <ArrowLeftIcon className="h-4 w-4" /> Home
+            </button>
             <div className="h-16 w-16 bg-blue-600 text-white flex items-center justify-center rounded-2xl font-black text-2xl font-display mx-auto mb-4 shadow-xl shadow-blue-500/30">JM</div>
             <h1 className="text-2xl md:text-3xl font-black font-display text-slate-900 tracking-tight uppercase px-4">Jere Model Academy</h1>
             <p className="mt-2 text-slate-500 font-medium text-sm md:text-base">E-Result & School Management Portal</p>
@@ -262,6 +271,8 @@ const App: React.FC = () => {
   const [pins, setPins] = useState<Pin[]>(() => loadFromStorage('jma_pins', mockPins));
   const [schoolConfig, setSchoolConfig] = useState<SchoolConfig>(() => loadFromStorage('jma_config', mockSchoolConfig));
   const [psychomotor, setPsychomotor] = useState<PsychomotorRecord[]>(() => loadFromStorage('jma_psychomotor', mockPsychomotor));
+  const [staffAttendance, setStaffAttendance] = useState<StaffAttendance[]>(() => loadFromStorage('jma_staff_attendance', []));
+
   // Record map: "userId_studentId": count
   const [viewLogs, setViewLogs] = useState<Record<string, number>>(() => loadFromStorage('jma_view_logs', {}));
   
@@ -280,7 +291,9 @@ const App: React.FC = () => {
   useEffect(() => localStorage.setItem('jma_psychomotor', JSON.stringify(psychomotor)), [psychomotor]);
   useEffect(() => localStorage.setItem('jma_view_logs', JSON.stringify(viewLogs)), [viewLogs]);
   useEffect(() => localStorage.setItem('jma_access_requests', JSON.stringify(accessRequests)), [accessRequests]);
+  useEffect(() => localStorage.setItem('jma_staff_attendance', JSON.stringify(staffAttendance)), [staffAttendance]);
 
+  const [authView, setAuthView] = useState<'LANDING' | 'LOGIN'>('LANDING'); // New state for Landing Page
   const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
   const [loginCreds, setLoginCreds] = useState({ email: '', password: '', admissionNo: '', pin: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -307,7 +320,7 @@ const App: React.FC = () => {
   };
 
   // --- Permission Request Logic ---
-  
+  // ... (rest of the logic remains the same)
   const createAccessRequest = (type: RequestType, resourceId: string, details: string) => {
       if (!user) return;
       
@@ -436,6 +449,7 @@ const App: React.FC = () => {
      if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
      setUser(null);
      setView('login');
+     setAuthView('LANDING'); // Reset to landing on logout
      setSelectedClassId(null);
      setSelectedSubjectId(null);
   };
@@ -451,7 +465,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveResult = (newResult: Result) => {
-    // LOCKING LOGIC:
+    // ... (logic for save result)
     const isAdmin = user?.role === UserRole.ADMIN;
     let isLocked = isAdmin ? newResult.isLocked : true;
 
@@ -491,6 +505,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveReviewRemark = (studentId: string, remark: string) => {
+      // ... (logic for review remark)
       if (!user) return;
       const role = user.role;
       setResults(prev => {
@@ -512,6 +527,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveAttendance = (newRecords: Attendance[]) => {
+      // ... (logic for save attendance)
       if (newRecords.length === 0) return;
       
       const { classId, date } = newRecords[0];
@@ -530,6 +546,7 @@ const App: React.FC = () => {
   };
 
   const handleAttendanceUnlockRequest = (classId: string, date: string) => {
+      // ...
       const resourceId = `${classId}|${date}`;
       const permission = hasApprovedPermission(RequestType.EDIT_ATTENDANCE, resourceId);
       
@@ -543,6 +560,7 @@ const App: React.FC = () => {
   };
 
   const handleCheckViewLimit = (studentId: string) => {
+      // ...
       if (!user) return false;
       if (user.role === UserRole.ADMIN || user.role === UserRole.PRINCIPAL) return true; 
 
@@ -572,6 +590,7 @@ const App: React.FC = () => {
   };
 
   const handleFormMasterViewAccess = () => {
+     // ...
      if (user?.role === UserRole.FORM_MASTER) {
          if (formMasterViewCount >= 2) {
              alert("Access Denied: Limit reached.");
@@ -595,6 +614,11 @@ const App: React.FC = () => {
       return `${p()}-${p()}-${p()}`;
   };
 
+  const handleStaffClockIn = (record: StaffAttendance) => {
+      setStaffAttendance(prev => [record, ...prev]);
+      addLog(user!.id, user!.role, 'STAFF_ATTENDANCE', `Clocked in at ${record.time}`);
+  };
+
   // Back Button Component
   const BackButton = () => (
       <button onClick={() => setView('dashboard')} className="flex items-center text-slate-500 hover:text-blue-600 mb-4 font-medium transition-colors">
@@ -603,12 +627,11 @@ const App: React.FC = () => {
       </button>
   );
   
+  // Dashboard View and other view components...
   const DashboardView = () => {
-    // Add strict guard clause to satisfy TypeScript
     if (!user) return null;
-
     const pendingRequests = accessRequests.filter(r => r.status === RequestStatus.PENDING);
-
+    // ... (rest of Dashboard view)
     return (
     <div className="space-y-8">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between">
@@ -739,7 +762,7 @@ const App: React.FC = () => {
   };
 
   const ResultEntryFlow = () => {
-    // Logic for Admin to switch contexts
+    // ... (rest of result entry flow)
     const isRestricted = user?.role !== UserRole.ADMIN;
     const currentSession = isRestricted ? schoolConfig.activeSession : adminSessionFilter;
     const currentTerm = isRestricted ? schoolConfig.activeTerm : adminTermFilter;
@@ -924,6 +947,7 @@ const App: React.FC = () => {
   };
 
   const AttendanceView = () => {
+     // ... (rest of attendance view)
      const myClassId = user?.assignedClassIds?.[0]; 
      const myClass = classes.find(c => c.id === myClassId);
      
@@ -954,6 +978,9 @@ const App: React.FC = () => {
   };
 
   if (!user) {
+    if (authView === 'LANDING') {
+      return <LandingPage onNavigate={(type) => { setLoginTab(type); setAuthView('LOGIN'); }} />;
+    }
     return <LoginScreen 
         loginTab={loginTab}
         setLoginTab={setLoginTab}
@@ -964,6 +991,7 @@ const App: React.FC = () => {
         showPassword={showPassword}
         setShowPassword={setShowPassword}
         isAuthenticating={isAuthenticating}
+        onBack={() => setAuthView('LANDING')}
     />;
   }
 
@@ -982,6 +1010,19 @@ const App: React.FC = () => {
       {view === 'results' && <ResultEntryFlow />}
       
       {view === 'attendance' && <AttendanceView />}
+      
+      {/* New Staff Attendance View */}
+      {view === 'staff_attendance' && (
+          <div className="space-y-4">
+             <BackButton />
+             <StaffAttendancePanel 
+                user={user}
+                schoolConfig={schoolConfig}
+                attendanceHistory={staffAttendance.filter(a => a.staffId === user.id).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())}
+                onClockIn={handleStaffClockIn}
+             />
+          </div>
+      )}
       
       {view === 'staff_manager' && (
           <div className="space-y-4">

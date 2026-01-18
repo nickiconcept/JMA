@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { SchoolConfig, Term } from '../types';
 import Button from './Button';
-import { PhotoIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, CalendarDaysIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface Props {
   config: SchoolConfig;
@@ -13,6 +13,7 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
   const [formData, setFormData] = useState<SchoolConfig>(config);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -39,6 +40,28 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSetCurrentLocation = () => {
+      setGpsLoading(true);
+      if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition((position) => {
+              setFormData(prev => ({
+                  ...prev,
+                  gpsCoordinates: {
+                      lat: position.coords.latitude,
+                      lng: position.coords.longitude
+                  }
+              }));
+              setGpsLoading(false);
+          }, (error) => {
+              alert("Error getting location: " + error.message);
+              setGpsLoading(false);
+          }, { enableHighAccuracy: true });
+      } else {
+          alert("Geolocation not supported by this browser.");
+          setGpsLoading(false);
+      }
   };
 
   return (
@@ -133,6 +156,55 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
                   />
                </div>
              </div>
+          </div>
+
+          {/* Staff Attendance Geofencing */}
+          <div className="border-t border-slate-100 pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                 <MapPinIcon className="h-6 w-6 text-emerald-600" />
+                 <h3 className="text-lg font-bold text-slate-800">Staff Attendance Geofencing</h3>
+              </div>
+              <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <div>
+                    <label className="block text-sm font-bold text-emerald-800 mb-2">Latitude</label>
+                    <input 
+                       type="number" step="any"
+                       value={formData.gpsCoordinates?.lat || ''} 
+                       onChange={e => setFormData(prev => ({...prev, gpsCoordinates: {...prev.gpsCoordinates!, lat: parseFloat(e.target.value) || 0}}))}
+                       className="w-full px-4 py-2 rounded-xl border border-emerald-200 bg-white"
+                       placeholder="e.g. 9.6833"
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-sm font-bold text-emerald-800 mb-2">Longitude</label>
+                    <input 
+                       type="number" step="any"
+                       value={formData.gpsCoordinates?.lng || ''} 
+                       onChange={e => setFormData(prev => ({...prev, gpsCoordinates: {...prev.gpsCoordinates!, lng: parseFloat(e.target.value) || 0}}))}
+                       className="w-full px-4 py-2 rounded-xl border border-emerald-200 bg-white"
+                       placeholder="e.g. 7.7000"
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-sm font-bold text-emerald-800 mb-2">Allowed Radius (Meters)</label>
+                    <input 
+                       type="number"
+                       value={formData.allowedRadiusMeters || 200} 
+                       onChange={e => setFormData(prev => ({...prev, allowedRadiusMeters: parseInt(e.target.value) || 0}))}
+                       className="w-full px-4 py-2 rounded-xl border border-emerald-200 bg-white"
+                    />
+                 </div>
+                 <div className="md:col-span-3 flex justify-start">
+                     <Button 
+                        type="button" 
+                        variant="secondary" 
+                        onClick={handleSetCurrentLocation}
+                        isLoading={gpsLoading}
+                     >
+                        📍 Set to Current Location
+                     </Button>
+                 </div>
+              </div>
           </div>
 
           {/* Table Labels Configuration */}

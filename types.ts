@@ -92,6 +92,20 @@ export interface Attendance {
   session: string;
 }
 
+export interface StaffAttendance {
+  id: string;
+  staffId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM:SS
+  timestamp: string; // ISO Full
+  coordinates: {
+      lat: number;
+      lng: number;
+  };
+  distanceFromSchool: number; // In Meters
+  status: 'PRESENT' | 'LATE';
+}
+
 export interface AuditLog {
   id: string;
   userId: string;
@@ -144,6 +158,12 @@ export interface SchoolConfig {
   activeTerm: Term;
   nextTermBegins: string;
   nextTermEnds: string;
+  // Geolocation for Staff Attendance
+  gpsCoordinates?: {
+      lat: number;
+      lng: number;
+  };
+  allowedRadiusMeters: number; // e.g., 200 meters
   // Dynamic labels for report card table
   reportCardLayout: {
     headingColor: string;

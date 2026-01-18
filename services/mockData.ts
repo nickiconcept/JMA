@@ -89,6 +89,11 @@ export const mockSchoolConfig: SchoolConfig = {
   activeTerm: CURRENT_TERM,
   nextTermBegins: "2025-01-08",
   nextTermEnds: "2025-04-12",
+  gpsCoordinates: {
+    lat: 9.6833, // Approximation for Kagarko area (Example)
+    lng: 7.7000
+  },
+  allowedRadiusMeters: 500,
   reportCardLayout: {
     headingColor: 'blue',
     subjectLabel: 'Subject',

@@ -20,7 +20,8 @@ import {
   ArrowTrendingUpIcon,
   SparklesIcon,
   Cog6ToothIcon,
-  PencilSquareIcon
+  PencilSquareIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -103,14 +104,18 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
           <NavItem view="dashboard" icon={HomeIcon} label="Overview" />
 
           {/* Teacher & Form Master & Admin - Result Entry */}
-          {(user.role === UserRole.TEACHER || user.role === UserRole.FORM_MASTER || user.role === UserRole.ADMIN) && (
-            <NavItem view="results" icon={AcademicCapIcon} label="Result Entry" />
+          {(user.role === UserRole.TEACHER || user.role === UserRole.FORM_MASTER || user.role === UserRole.ADMIN || user.role === UserRole.PRINCIPAL) && (
+            <>
+               <NavItem view="results" icon={AcademicCapIcon} label="Result Entry" />
+               {/* Staff Attendance Link */}
+               <NavItem view="staff_attendance" icon={MapPinIcon} label="My Attendance" />
+            </>
           )}
 
           {/* Form Master Specific */}
           {(user.role === UserRole.FORM_MASTER || user.role === UserRole.ADMIN) && (
              <>
-               <NavItem view="attendance" icon={CalendarDaysIcon} label="Attendance" />
+               <NavItem view="attendance" icon={CalendarDaysIcon} label="Class Attendance" />
                <NavItem view="class_manager" icon={UserGroupIcon} label="My Class" />
                <NavItem view="psychomotor" icon={SparklesIcon} label="Psychomotor Skills" />
                <NavItem view="fm_review" icon={PencilSquareIcon} label="Student Review" />
