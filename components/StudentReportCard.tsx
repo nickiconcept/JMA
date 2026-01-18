@@ -71,7 +71,7 @@ const StudentReportCard: React.FC<Props> = ({
   const affective = psychomotorRecord?.affective || { punctuality: 0, attendance: 0, reliability: 0, neatness: 0, politeness: 0 };
   const psychomotor = psychomotorRecord?.psychomotor || { handwriting: 0, games: 0, communication: 0, creativity: 0, leadership: 0 };
   
-  const config = schoolConfig || { 
+  const config: SchoolConfig = schoolConfig || { 
       schoolName: "JERE MODEL ACADEMY", 
       address: "Ungwan Shakwera, Kagarko LGA, Kaduna State",
       principalName: "The Principal",
@@ -79,6 +79,7 @@ const StudentReportCard: React.FC<Props> = ({
       activeTerm: Term.FIRST,
       nextTermBegins: "____",
       nextTermEnds: "____",
+      allowedRadiusMeters: 500, // Default required by type
       reportCardLayout: {
           subjectLabel: 'Subject', ca1Label: 'CA 1', ca2Label: 'CA 2', assignLabel: 'Assign', 
           notesLabel: 'Notes', examLabel: 'Exam', totalLabel: 'Total', gradeLabel: 'Grade', remarkLabel: 'Remark',
@@ -212,7 +213,7 @@ const StudentReportCard: React.FC<Props> = ({
                     <th className="py-2 px-1 text-center">{labels.notesLabel}</th>
                     <th className="py-2 px-1 text-center bg-gray-50 text-gray-500">Total CA</th>
                     <th className="py-2 px-1 text-center">{labels.examLabel}</th>
-                    <th className="py-2 px-2 text-center bg-blue-50 text-blue-800">{labels.totalLabel}</th>
+                    <th className="py-2 px-2 text-center font-bold text-blue-900 bg-blue-50/30 text-sm">{labels.totalLabel}</th>
                     {isThirdTerm && <th className="py-2 px-2 text-center bg-purple-50 text-purple-800">Ann. Avg</th>}
                     <th className="py-2 px-1 text-center">{labels.gradeLabel}</th>
                     <th className="py-2 px-3 text-left w-1/4">{labels.remarkLabel}</th>
