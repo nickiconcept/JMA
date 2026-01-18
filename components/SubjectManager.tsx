@@ -1,18 +1,17 @@
 
 import React, { useState } from 'react';
-import { Subject } from '../types';
+import { Subject, ClassDefinition } from '../types';
 import Button from './Button';
 
 interface Props {
   subjects: Subject[];
+  classes: ClassDefinition[];
   onAdd: (sub: Subject) => void;
   onUpdate: (sub: Subject) => void;
   onDelete: (id: string) => void;
 }
 
-const CLASS_LEVELS = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
-
-const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }) => {
+const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({ isCore: true, compatibleLevels: [] });
 
@@ -36,6 +35,8 @@ const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }
           setCurrentSubject({ ...currentSubject, compatibleLevels: [...current, level] });
       }
   };
+
+  const availableLevels = classes.map(c => c.name).sort();
 
   return (
     <div className="space-y-6">
@@ -61,7 +62,7 @@ const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Mapped Class Levels (Leave empty for All)</label>
                 <div className="flex flex-wrap gap-2">
-                    {CLASS_LEVELS.map(level => (
+                    {availableLevels.length > 0 ? availableLevels.map(level => (
                         <button
                             key={level}
                             type="button"
@@ -74,7 +75,9 @@ const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }
                         >
                             {level}
                         </button>
-                    ))}
+                    )) : (
+                        <p className="text-xs text-gray-400">No classes defined. Create classes to map specific subjects.</p>
+                    )}
                 </div>
             </div>
 
