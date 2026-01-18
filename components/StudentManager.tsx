@@ -51,7 +51,7 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
           const lines = csv.split('\n');
           let addedCount = 0;
           lines.forEach((line, index) => {
-              if (index === 0) return; 
+              if (index === 0) return; // Skip header
               const [name, classId] = line.split(',').map(item => item.trim());
               if (name && classId && classes.some(c => c.id === classId)) {
                   onAdd({
@@ -67,6 +67,26 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
       };
       reader.readAsText(file);
       if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const downloadTemplate = () => {
+      // Create a CSV string with Header and Example Rows
+      // We check if classes exist to provide valid examples, otherwise use generic placeholders.
+      const exampleClass1 = classes[0]?.id || "JSS1";
+      const exampleClass2 = classes[1]?.id || "SSS2";
+      
+      const csvContent = `Name,ClassID
+John Doe,${exampleClass1}
+Jane Smith,${exampleClass2}`;
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "student_bulk_upload_template.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
   };
 
   const filteredStudents = filterClass === 'ALL' 
@@ -124,6 +144,7 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
         </div>
         <div className="flex space-x-2 items-center">
              <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload}/>
+            <Button variant="outline" onClick={downloadTemplate} className="text-sm">Download Template</Button>
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>Bulk Upload</Button>
             <Button onClick={() => setIsEditing(true)}>+ Register Student</Button>
         </div>
