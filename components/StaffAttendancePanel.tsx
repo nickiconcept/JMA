@@ -35,6 +35,12 @@ const StaffAttendancePanel: React.FC<Props> = ({ user, schoolConfig, attendanceH
   };
 
   const handleClockIn = () => {
+    // strict check
+    if (todayRecord) {
+        setError("You have already clocked in for today.");
+        return;
+    }
+
     setLoading(true);
     setError(null);
 

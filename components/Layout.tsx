@@ -21,7 +21,8 @@ import {
   SparklesIcon,
   Cog6ToothIcon,
   PencilSquareIcon,
-  MapPinIcon
+  MapPinIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -141,6 +142,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
              <>
               <div className="mt-8 mb-2 px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest">Administration</div>
               <NavItem view="config" icon={Cog6ToothIcon} label="Portal Configuration" />
+              <NavItem view="admin_attendance" icon={ClockIcon} label="Staff Attendance Log" />
               <NavItem view="promotions" icon={ArrowTrendingUpIcon} label="Promotions" />
               <NavItem view="staff_manager" icon={UsersIcon} label="Staff & Users" />
               <NavItem view="subjects" icon={BookOpenIcon} label="Subjects & Classes" />

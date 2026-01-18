@@ -20,6 +20,7 @@ import SchoolConfigManager from './components/SchoolConfigManager';
 import StudentResultReview from './components/StudentResultReview';
 import LandingPage from './components/LandingPage';
 import StaffAttendancePanel from './components/StaffAttendancePanel';
+import AdminStaffAttendance from './components/AdminStaffAttendance';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance } from './types';
 import { mockUsers, mockStudents, mockResults, mockPins, mockClasses, mockSubjects, mockAttendance, mockSchoolConfig, mockPsychomotor } from './services/mockData';
@@ -1021,6 +1022,17 @@ const App: React.FC = () => {
                 attendanceHistory={staffAttendance.filter(a => a.staffId === user.id).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())}
                 onClockIn={handleStaffClockIn}
              />
+          </div>
+      )}
+
+      {/* Admin Attendance Report */}
+      {view === 'admin_attendance' && (
+          <div className="space-y-4">
+              <BackButton />
+              <AdminStaffAttendance 
+                  users={users}
+                  attendanceRecords={staffAttendance}
+              />
           </div>
       )}
       
