@@ -42,7 +42,7 @@ const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, o
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Subject Management</h2>
-        <Button onClick={() => setIsEditing(true)}>+ Add Subject</Button>
+        <Button onClick={() => { setCurrentSubject({ isCore: true, compatibleLevels: [] }); setIsEditing(true); }}>+ Add Subject</Button>
       </div>
 
       {isEditing && (
@@ -92,7 +92,7 @@ const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, o
             </div>
             
             <div className="flex space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => { setIsEditing(false); setCurrentSubject({ isCore: true, compatibleLevels: [] }); }}>Cancel</Button>
               <Button type="submit">Save</Button>
             </div>
           </form>

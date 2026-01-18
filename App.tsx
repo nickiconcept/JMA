@@ -511,6 +511,15 @@ const App: React.FC = () => {
       await supabase.from('school_config').upsert({ id: 1, data: cfg });
       setSchoolConfig(cfg);
   };
+  
+  const saveSubject = async (s: Subject) => {
+      await supabase.from('subjects').upsert(s);
+      setSubjects(prev => { const idx = prev.findIndex(x => x.id === s.id); return idx >= 0 ? prev.map(x => x.id === s.id ? s : x) : [...prev, s]; });
+  };
+  const deleteSubject = async (id: string) => {
+      await supabase.from('subjects').delete().eq('id', id);
+      setSubjects(prev => prev.filter(x => x.id !== id));
+  };
 
   const handleStaffClockIn = async (record: StaffAttendance) => {
       await supabase.from('staff_attendance').insert(record);
@@ -584,7 +593,7 @@ const App: React.FC = () => {
       {view === 'staff_manager' && <StaffManagement users={users} classes={classes} subjects={subjects} onAddUser={saveUser} onUpdateUser={saveUser} onDeleteUser={deleteUser} />}
       {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} />}
       {view === 'students_manager' && <StudentManager students={students} classes={classes} onAdd={saveStudent} onUpdate={saveStudent} onDelete={deleteStudent} />}
-      {view === 'subjects' && <SubjectManager subjects={subjects} classes={classes} onAdd={() => {}} onUpdate={() => {}} onDelete={() => {}} />} {/* Hook up proper handlers if needed, simplified for brevity */}
+      {view === 'subjects' && <SubjectManager subjects={subjects} classes={classes} onAdd={saveSubject} onUpdate={saveSubject} onDelete={deleteSubject} />} 
       {view === 'config' && <SchoolConfigManager config={schoolConfig} onSave={saveConfig} />}
       {view === 'attendance' && selectedClassId && (
           <AttendanceRegister 
