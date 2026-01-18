@@ -152,14 +152,12 @@ const ChangePasswordView: React.FC<{ user: User, onCancel: () => void, onChangeP
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Since we are using profiles view, we might not have the password in user object if it was a fetch.
-        // However, for change password, we usually verify via RPC or just trust the admin/user flow in this mock-auth setup.
-        // To strictly fix RLS we should use an RPC 'change_password', but for now we keep client check if it was loaded from login
-        // which returns the object. 
         
-        // Note: For full security, this should be an RPC.
-        const actualCurrent = user.password || 'password';
-        if (currentPass !== actualCurrent && user.password) { alert("Current password incorrect."); return; }
+        // Validation for mock data. For real data (where password isn't loaded), we rely on server side or skip strict current check.
+        if (user.password && currentPass !== user.password) { 
+            alert("Current password incorrect."); 
+            return; 
+        }
         
         if (newPass.length < 6) { alert("New password must be at least 6 characters."); return; }
         if (newPass !== confirmPass) { alert("New passwords do not match."); return; }
@@ -334,28 +332,38 @@ const App: React.FC = () => {
       const passwordInput = loginCreds.password;
 
       try {
-          // SECURE LOGIN: Use RPC to check credentials server-side
+          // 1. Try Secure RPC Login
           const { data, error } = await supabase.rpc('auth_staff', {
             email_input: emailInput,
             password_input: passwordInput
           });
 
+          // 2. Handle RPC Success
+          if (data) {
+              handleAuthSuccess(data as User);
+              setIsAuthenticating(false);
+              return;
+          }
+
+          // 3. Handle RPC Failure/Null (User not in DB) -> Fallback to Local/Mock check
+          // If the DB is empty or connection fails, the app loads mockUsers into 'users' state.
+          // Since RPC checks the REAL DB, it will return null if DB is empty.
+          // We must check if our local 'users' state has the user (which means it's a mock user with a password).
+          const foundLocalUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
+          
+          if (foundLocalUser && foundLocalUser.password && (foundLocalUser.password === passwordInput)) {
+               // This path is taken when the app is running in "Mock Mode" because DB is empty
+               handleAuthSuccess(foundLocalUser);
+               setIsAuthenticating(false);
+               return;
+          }
+
+          // 4. Genuine Failure
           if (error) {
               console.error("Login RPC Error", error);
-              // Fallback to mock if RPC fails/doesn't exist yet (for dev)
-              const foundUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
-              if (foundUser && (foundUser.password === passwordInput || passwordInput === 'password')) {
-                   handleAuthSuccess(foundUser);
-              } else {
-                   alert("Login failed or Invalid Credentials.");
-              }
-          } else if (data) {
-              // RPC returns user object without password if successful
-              const authenticatedUser = data as User;
-              handleAuthSuccess(authenticatedUser);
-          } else {
-              alert("Invalid Email or Password.");
           }
+          alert("Invalid Email or Password.");
+
       } catch (err) {
           console.error("Login Error", err);
           alert("An unexpected error occurred during login.");
