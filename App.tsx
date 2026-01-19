@@ -592,7 +592,7 @@ const App: React.FC = () => {
       )}
       {view === 'staff_manager' && <StaffManagement users={users} classes={classes} subjects={subjects} onAddUser={saveUser} onUpdateUser={saveUser} onDeleteUser={deleteUser} />}
       {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} />}
-      {view === 'students_manager' && <StudentManager students={students} classes={classes} onAdd={saveStudent} onUpdate={saveStudent} onDelete={deleteStudent} />}
+      {view === 'students_manager' && <StudentManager students={students} classes={classes} onAdd={saveStudent} onUpdate={saveStudent} onDelete={deleteStudent} schoolConfig={schoolConfig} />}
       {view === 'subjects' && <SubjectManager subjects={subjects} classes={classes} onAdd={saveSubject} onUpdate={saveSubject} onDelete={deleteSubject} />} 
       {view === 'config' && <SchoolConfigManager config={schoolConfig} onSave={saveConfig} />}
       {view === 'attendance' && selectedClassId && (

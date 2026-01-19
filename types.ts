@@ -197,6 +197,8 @@ export interface SchoolConfig {
   };
   // Custom Skills Configuration
   customSkills?: SkillDefinition[];
+  // Admission Configuration
+  admissionNumberFormat?: string; // e.g. "JMA/{YY}/"
 }
 
 // --- Permission System Types ---
