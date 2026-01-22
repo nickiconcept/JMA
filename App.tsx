@@ -25,8 +25,47 @@ import ReportsDashboard from './components/ReportsDashboard';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance, PromotionStatus } from './types';
 import { mockUsers, mockSchoolConfig, mockStudents, mockClasses, mockSubjects, mockResults, mockPins, mockPsychomotor } from './services/mockData';
-import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/solid';
+import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, CalendarDaysIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { supabase } from './services/supabase';
+
+// --- Simple Error Boundary Component ---
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+// Fixed ErrorBoundary by explicitly defining state and props interfaces to resolve TS errors
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) { 
+    super(props); 
+    this.state = { hasError: false }; 
+  }
+  
+  static getDerivedStateFromError(_: Error): ErrorBoundaryState { 
+    return { hasError: true }; 
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border-2 border-dashed border-red-200 p-12 text-center">
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-black text-slate-900 uppercase">Component Failed to Render</h2>
+          <p className="text-slate-500 text-sm mt-2 max-w-sm">A critical error occurred in this module. Try reloading or switching views.</p>
+          <Button className="mt-6" variant="outline" onClick={() => window.location.reload()}>Reload Portal</Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // --- Login Screen Component ---
 interface LoginScreenProps {
@@ -213,7 +252,7 @@ const App: React.FC = () => {
             if (requestsRes.data) setAccessRequests(requestsRes.data);
 
         } catch (e) {
-            console.error("Critical database fetch failure, reverting to mocks", e);
+            console.error("Data fetch failure", e);
             setUsers(mockUsers);
             setStudents(mockStudents);
             setClasses(mockClasses);
@@ -265,7 +304,7 @@ const App: React.FC = () => {
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
-      const expiry = new Date().getTime() + (30 * 60 * 1000);
+      const expiry = new Date().getTime() + (60 * 60 * 1000); // 1 hour session
       localStorage.setItem('jma_session', JSON.stringify({ user: authenticatedUser, expiry }));
       setUser(authenticatedUser);
       setView('dashboard');
@@ -413,10 +452,9 @@ const App: React.FC = () => {
           try {
             await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId);
           } catch (err) {
-            console.error("Batch promotion failed for", up.studentId, err);
+            console.error("Batch promotion failure", err);
           }
       }
-      alert("Promotions processed.");
   };
 
   const handleGeneratePins = async (classId: string, amountPerStudent: number) => {
@@ -442,7 +480,7 @@ const App: React.FC = () => {
       const field = user?.role === UserRole.PRINCIPAL ? 'principalRemark' : 'formMasterRemark';
       const termResults = results.filter(r => r.studentId === studentId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm);
       if (termResults.length === 0) {
-          alert("No terminal results found to apply remark.");
+          alert("No terminal records found to save remarks to.");
           return;
       }
       const updated = termResults.map(r => ({ ...r, [field]: remark }));
@@ -458,8 +496,8 @@ const App: React.FC = () => {
   if (isLoadingData) {
       return (
         <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white space-y-4">
-            <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent animate-spin rounded-full"></div>
-            <p className="font-black text-xs uppercase tracking-widest animate-pulse">Initializing Digital Grid...</p>
+            <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent animate-spin rounded-full"></div>
+            <p className="font-black text-xs uppercase tracking-widest animate-pulse">Initializing Portal...</p>
         </div>
       );
   }
@@ -476,103 +514,105 @@ const App: React.FC = () => {
 
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={setView}>
-      {view === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-700">
-              <div className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col justify-center">
-                  <h1 className="text-4xl font-black font-display text-slate-900 leading-[1.1]">System Access:<br/><span className="text-blue-600">{user.name}</span></h1>
-                  <p className="text-slate-400 mt-4 font-bold uppercase tracking-widest text-xs">Environment: {schoolConfig.activeSession} • {schoolConfig.activeTerm}</p>
-              </div>
-              {user.role === UserRole.ADMIN && (
-                  <div className="md:col-span-2"><AuditLogsTable logs={logs.slice(0, 10)} /></div>
-              )}
-          </div>
-      )}
+      <ErrorBoundary>
+        {view === 'dashboard' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-700">
+                <div className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col justify-center">
+                    <h1 className="text-4xl font-black font-display text-slate-900 leading-[1.1]">Portal Access:<br/><span className="text-blue-600">{user.name}</span></h1>
+                    <p className="text-slate-400 mt-4 font-bold uppercase tracking-widest text-xs">Environment: {schoolConfig.activeSession} • {schoolConfig.activeTerm}</p>
+                </div>
+                {user.role === UserRole.ADMIN && (
+                    <div className="md:col-span-2"><AuditLogsTable logs={logs.slice(0, 10)} /></div>
+                )}
+            </div>
+        )}
 
-      {view === 'results' && (
-          <div className="space-y-6">
-              {!selectedClassId ? (
-                  <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 max-w-xl mx-auto text-center">
-                      <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                          <AcademicCapIcon className="h-8 w-8" />
-                      </div>
-                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-900">Academic Entry Point</h2>
-                      <div className="space-y-4">
-                        <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
-                            <option value="">-- Targeted Class --</option>
+        {view === 'results' && (
+            <div className="space-y-6">
+                {!selectedClassId ? (
+                    <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 max-w-xl mx-auto text-center">
+                        <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                            <AcademicCapIcon className="h-8 w-8" />
+                        </div>
+                        <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-900">Academic Entry Point</h2>
+                        <div className="space-y-4">
+                          <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
+                              <option value="">-- Targeted Class --</option>
+                              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                          <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
+                              <option value="">-- Targeted Subject --</option>
+                              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
+                        <div className="flex justify-between items-center bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                          <h2 className="font-black text-xl font-display text-slate-900 uppercase tracking-widest">{classes.find(c => c.id === selectedClassId)?.name} // {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
+                          <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors">Switch Context</button>
+                        </div>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                          {students.filter(s => s.classId === selectedClassId).map(s => (
+                              <ResultEntry 
+                                  key={s.id} student={s} subject={subjects.find(x=>x.id===selectedSubjectId)?.name || ''} 
+                                  subjectId={selectedSubjectId!} session={schoolConfig.activeSession} term={schoolConfig.activeTerm}
+                                  existingResult={results.find(r => r.studentId === s.id && r.subjectId === selectedSubjectId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)}
+                                  onSave={handleSaveResult}
+                              />
+                          ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        )}
+
+        {view === 'attendance' && (
+            <div className="p-4">
+                {!selectedClassId ? (
+                    <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 max-w-xl mx-auto text-center">
+                        <div className="h-16 w-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                            <CalendarDaysIcon className="h-8 w-8" />
+                        </div>
+                        <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-900">Attendance Log</h2>
+                        <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
+                            <option value="">-- Targeting Class --</option>
                             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
-                            <option value="">-- Targeted Subject --</option>
-                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                      </div>
-                  </div>
-              ) : (
-                  <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
-                      <div className="flex justify-between items-center bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-                        <h2 className="font-black text-xl font-display text-slate-900 uppercase tracking-widest">{classes.find(c => c.id === selectedClassId)?.name} // {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
-                        <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors">Switch Context</button>
-                      </div>
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                        {students.filter(s => s.classId === selectedClassId).map(s => (
-                            <ResultEntry 
-                                key={s.id} student={s} subject={subjects.find(x=>x.id===selectedSubjectId)?.name || ''} 
-                                subjectId={selectedSubjectId!} session={schoolConfig.activeSession} term={schoolConfig.activeTerm}
-                                existingResult={results.find(r => r.studentId === s.id && r.subjectId === selectedSubjectId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)}
-                                onSave={handleSaveResult}
-                            />
-                        ))}
-                      </div>
-                  </div>
-              )}
-          </div>
-      )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="mb-8 flex justify-between items-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                            <button onClick={() => setSelectedClassId(null)} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">← Context Switch</button>
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{classes.find(c => c.id === selectedClassId)?.name}</span>
+                        </div>
+                        <AttendanceRegister currentClass={classes.find(c => c.id === selectedClassId)!} students={students.filter(s => s.classId === selectedClassId)} attendanceRecords={attendance} onSaveAttendance={handleSaveAttendance} currentUserRole={user.role} />
+                    </>
+                )}
+            </div>
+        )}
 
-      {view === 'attendance' && (
-          <div className="p-4">
-              {!selectedClassId ? (
-                  <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 max-w-xl mx-auto text-center">
-                      <div className="h-16 w-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                          <CalendarDaysIcon className="h-8 w-8" />
-                      </div>
-                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-900">Attendance Log</h2>
-                      <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
-                          <option value="">-- Targeting Class --</option>
-                          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                  </div>
-              ) : (
-                  <>
-                      <div className="mb-8 flex justify-between items-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-                          <button onClick={() => setSelectedClassId(null)} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">← Context Switch</button>
-                          <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{classes.find(c => c.id === selectedClassId)?.name}</span>
-                      </div>
-                      <AttendanceRegister currentClass={classes.find(c => c.id === selectedClassId)!} students={students.filter(s => s.classId === selectedClassId)} attendanceRecords={attendance} onSaveAttendance={handleSaveAttendance} currentUserRole={user.role} />
-                  </>
-              )}
-          </div>
-      )}
-
-      {view === 'insights' && <Insights results={results} students={students} classes={classes} />}
-      {view === 'approvals' && <ResultApproval user={user} results={results} students={students} classes={classes} subjects={subjects} onUpdateResult={handleSaveResult} />}
-      {view === 'principal_review' && <StudentResultReview students={students} results={results} classes={classes} subjects={subjects} userRole={UserRole.PRINCIPAL} onSaveRemark={handleSaveGeneralRemark} />}
-      {view === 'fm_review' && <StudentResultReview students={students} results={results} classes={classes} subjects={subjects} userRole={UserRole.FORM_MASTER} onSaveRemark={handleSaveGeneralRemark} assignedClassIds={user.assignedClassIds} />}
-      {view === 'admin_attendance' && <AdminStaffAttendance users={users} attendanceRecords={staffAttendance} />}
-      {view === 'promotions' && <PromotionManager students={students} classes={classes} results={results} onPromoteStudents={handlePromoteStudentsBatch} />}
-      {view === 'pins' && <PinManager pins={pins} classes={classes} students={students} onGenerateForClass={handleGeneratePins} onAssignStudent={handleAssignPin} />}
-      {view === 'audit' && <AuditLogsTable logs={logs} />}
-      {view === 'staff_manager' && <StaffManagement users={users} classes={classes} subjects={subjects} onAddUser={saveUser} onUpdateUser={saveUser} onDeleteUser={deleteUser} />}
-      {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} />}
-      {view === 'students_manager' && <StudentManager students={students} classes={classes} onAdd={saveStudent} onUpdate={saveStudent} onDelete={deleteStudent} schoolConfig={schoolConfig} />}
-      {view === 'subjects' && <SubjectManager subjects={subjects} classes={classes} onAdd={saveSubject} onUpdate={saveSubject} onDelete={deleteSubject} />} 
-      {view === 'config' && <SchoolConfigManager config={schoolConfig} onSave={saveConfig} />}
-      {view === 'staff_attendance' && <StaffAttendancePanel user={user} schoolConfig={schoolConfig} attendanceHistory={staffAttendance} onClockIn={handleStaffClockIn} />}
-      {view === 'reports' && <ReportsDashboard user={user} students={students} results={results} classes={classes} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} users={users} />}
-      {view === 'psychomotor' && <PsychomotorManager students={students} classes={classes} records={psychomotor} onSave={handleSavePsychomotor} userRole={user.role} assignedClassIds={user.assignedClassIds} config={schoolConfig} onUpdateConfig={saveConfig} />}
-      
-      {view === 'my_result' && user.role === UserRole.STUDENT && (
-          <StudentReportCard student={students.find(s => s.id === user.id)!} results={results.filter(r => r.studentId === user.id)} subjects={subjects} classes={classes} schoolConfig={schoolConfig} />
-      )}
+        {view === 'insights' && <Insights results={results} students={students} classes={classes} />}
+        {view === 'approvals' && <ResultApproval user={user} results={results} students={students} classes={classes} subjects={subjects} onUpdateResult={handleSaveResult} />}
+        {view === 'principal_review' && <StudentResultReview students={students} results={results} classes={classes} subjects={subjects} userRole={UserRole.PRINCIPAL} onSaveRemark={handleSaveGeneralRemark} />}
+        {view === 'fm_review' && <StudentResultReview students={students} results={results} classes={classes} subjects={subjects} userRole={UserRole.FORM_MASTER} onSaveRemark={handleSaveGeneralRemark} assignedClassIds={user.assignedClassIds || []} />}
+        {view === 'admin_attendance' && <AdminStaffAttendance users={users} attendanceRecords={staffAttendance} />}
+        {view === 'promotions' && <PromotionManager students={students} classes={classes} results={results} onPromoteStudents={handlePromoteStudentsBatch} />}
+        {view === 'pins' && <PinManager pins={pins} classes={classes} students={students} onGenerateForClass={handleGeneratePins} onAssignStudent={handleAssignPin} />}
+        {view === 'audit' && <AuditLogsTable logs={logs} />}
+        {view === 'staff_manager' && <StaffManagement users={users} classes={classes} subjects={subjects} onAddUser={saveUser} onUpdateUser={saveUser} onDeleteUser={deleteUser} />}
+        {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} />}
+        {view === 'students_manager' && <StudentManager students={students} classes={classes} onAdd={saveStudent} onUpdate={saveStudent} onDelete={deleteStudent} schoolConfig={schoolConfig} />}
+        {view === 'subjects' && <SubjectManager subjects={subjects} classes={classes} onAdd={saveSubject} onUpdate={saveSubject} onDelete={deleteSubject} />} 
+        {view === 'config' && <SchoolConfigManager config={schoolConfig} onSave={saveConfig} />}
+        {view === 'staff_attendance' && <StaffAttendancePanel user={user} schoolConfig={schoolConfig} attendanceHistory={staffAttendance} onClockIn={handleStaffClockIn} />}
+        {view === 'reports' && <ReportsDashboard user={user} students={students} results={results} classes={classes} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} users={users} />}
+        {view === 'psychomotor' && <PsychomotorManager students={students} classes={classes} records={psychomotor} onSave={handleSavePsychomotor} userRole={user.role} assignedClassIds={user.assignedClassIds || []} config={schoolConfig} onUpdateConfig={saveConfig} />}
+        
+        {view === 'my_result' && user.role === UserRole.STUDENT && (
+            <StudentReportCard student={students.find(s => s.id === user.id)!} results={results.filter(r => r.studentId === user.id)} subjects={subjects} classes={classes} schoolConfig={schoolConfig} />
+        )}
+      </ErrorBoundary>
     </Layout>
   );
 };
