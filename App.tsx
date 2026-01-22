@@ -28,7 +28,7 @@ import { mockUsers, mockSchoolConfig, mockStudents, mockClasses, mockSubjects, m
 import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, KeyIcon } from '@heroicons/react/24/solid';
 import { supabase } from './services/supabase';
 
-// --- Login Component ---
+// --- Login Screen Component ---
 interface LoginScreenProps {
   loginTab: 'RESULT' | 'STAFF';
   setLoginTab: (t: 'RESULT' | 'STAFF') => void;
@@ -145,47 +145,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   );
 };
 
-const ChangePasswordView: React.FC<{ user: User, onCancel: () => void, onChangePassword: (newPass: string) => void }> = ({ user, onCancel, onChangePassword }) => {
-    const [currentPass, setCurrentPass] = useState('');
-    const [newPass, setNewPass] = useState('');
-    const [confirmPass, setConfirmPass] = useState('');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        // Validation for mock data. For real data (where password isn't loaded), we rely on server side or skip strict current check.
-        if (user.password && currentPass !== user.password) { 
-            alert("Current password incorrect."); 
-            return; 
-        }
-        
-        if (newPass.length < 6) { alert("New password must be at least 6 characters."); return; }
-        if (newPass !== confirmPass) { alert("New passwords do not match."); return; }
-        onChangePassword(newPass);
-    };
-
-    return (
-        <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md border border-slate-200 mt-10">
-            <h2 className="text-xl font-bold mb-6 text-slate-800 flex items-center gap-2"><KeyIcon className="h-6 w-6 text-blue-600"/> Change Password</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <input type="password" required value={currentPass} onChange={e => setCurrentPass(e.target.value)} placeholder="Current Password" className="w-full border p-2 rounded mt-1"/>
-                <input type="password" required value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="New Password" className="w-full border p-2 rounded mt-1"/>
-                <input type="password" required value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="Confirm New Password" className="w-full border p-2 rounded mt-1"/>
-                <div className="flex justify-between pt-4">
-                    <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-                    <Button type="submit">Update Password</Button>
-                </div>
-            </form>
-        </div>
-    );
-};
-
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState('dashboard');
   const [isLoadingData, setIsLoadingData] = useState(true);
   
-  // Data States - Initialized empty, populated via Supabase or Fallback
+  // Data States
   const [users, setUsers] = useState<User[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [results, setResults] = useState<Result[]>([]);
@@ -198,20 +163,29 @@ const App: React.FC = () => {
   const [psychomotor, setPsychomotor] = useState<PsychomotorRecord[]>([]);
   const [staffAttendance, setStaffAttendance] = useState<StaffAttendance[]>([]);
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
-  const [viewLogs, setViewLogs] = useState<Record<string, number>>({}); 
 
-  // Initial Data Fetch from Supabase
+  // Selection states
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+
+  // Auth/View states
+  const [authView, setAuthView] = useState<'LANDING' | 'LOGIN'>('LANDING');
+  const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
+  const [loginCreds, setLoginCreds] = useState({ email: '', password: '', admissionNo: '', pin: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // Initial Data Fetch
   useEffect(() => {
     const fetchData = async () => {
         setIsLoadingData(true);
         try {
             const [
-                // Fetch from 'profiles' view instead of 'users' table to avoid RLS error
                 usersRes, studentsRes, classesRes, subjectsRes, 
                 resultsRes, attendanceRes, pinsRes, configRes, 
                 psychomotorRes, staffAttRes, logsRes, requestsRes
             ] = await Promise.all([
-                supabase.from('profiles').select('*'), // CHANGED: Query profiles view
+                supabase.from('profiles').select('*'),
                 supabase.from('students').select('*'),
                 supabase.from('classes').select('*'),
                 supabase.from('subjects').select('*'),
@@ -225,7 +199,6 @@ const App: React.FC = () => {
                 supabase.from('access_requests').select('*')
             ]);
 
-            // Robust Fallback: If DB table is empty (length 0), use Mock Data
             if (usersRes.data && usersRes.data.length > 0) setUsers(usersRes.data as User[]);
             else setUsers(mockUsers); 
 
@@ -254,8 +227,7 @@ const App: React.FC = () => {
             if (requestsRes.data) setAccessRequests(requestsRes.data);
 
         } catch (e) {
-            console.error("Error fetching data from Supabase:", e);
-            // On hard error, also fallback
+            console.error("Error fetching data:", e);
             setUsers(mockUsers);
             setStudents(mockStudents);
             setClasses(mockClasses);
@@ -267,11 +239,10 @@ const App: React.FC = () => {
             setIsLoadingData(false);
         }
     };
-
     fetchData();
   }, []);
 
-  // Session Persistence
+  // Session Management
   useEffect(() => {
     const sessionStr = localStorage.getItem('jma_session');
     if (sessionStr) {
@@ -287,18 +258,13 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const [authView, setAuthView] = useState<'LANDING' | 'LOGIN'>('LANDING');
-  const [loginTab, setLoginTab] = useState<'RESULT' | 'STAFF'>('RESULT');
-  const [loginCreds, setLoginCreds] = useState({ email: '', password: '', admissionNo: '', pin: '' });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
-  const [formMasterViewCount, setFormMasterViewCount] = useState<number>(0);
-  const [adminSessionFilter, setAdminSessionFilter] = useState(schoolConfig.activeSession);
-  const [adminTermFilter, setAdminTermFilter] = useState<Term>(schoolConfig.activeTerm);
+  // Auto-select class for Form Masters
+  useEffect(() => {
+    if (user?.role === UserRole.FORM_MASTER && user.assignedClassIds?.length === 1 && !selectedClassId) {
+        setSelectedClassId(user.assignedClassIds[0]);
+    }
+  }, [user, selectedClassId]);
 
-  // Sync Helper Actions
   const addLog = async (userId: string, role: string, action: string, details: string) => {
     const userObj = users.find(u => u.id === userId);
     const newLog: AuditLog = {
@@ -327,43 +293,26 @@ const App: React.FC = () => {
   const performStaffLogin = async (e: React.FormEvent) => {
       e.preventDefault();
       setIsAuthenticating(true);
-      
       const emailInput = loginCreds.email.trim();
       const passwordInput = loginCreds.password;
 
       try {
-          // 1. Try Secure RPC Login
           const { data, error } = await supabase.rpc('auth_staff', {
             email_input: emailInput,
             password_input: passwordInput
           });
-
-          // 2. Handle RPC Success
           if (data) {
               handleAuthSuccess(data as User);
               setIsAuthenticating(false);
               return;
           }
-
-          // 3. Handle RPC Failure/Null (User not in DB) -> Fallback to Local/Mock check
-          // If the DB is empty or connection fails, the app loads mockUsers into 'users' state.
-          // Since RPC checks the REAL DB, it will return null if DB is empty.
-          // We must check if our local 'users' state has the user (which means it's a mock user with a password).
           const foundLocalUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
-          
-          if (foundLocalUser && foundLocalUser.password && (foundLocalUser.password === passwordInput)) {
-               // This path is taken when the app is running in "Mock Mode" because DB is empty
+          if (foundLocalUser && foundLocalUser.password === passwordInput) {
                handleAuthSuccess(foundLocalUser);
                setIsAuthenticating(false);
                return;
           }
-
-          // 4. Genuine Failure
-          if (error) {
-              console.error("Login RPC Error", error);
-          }
           alert("Invalid Email or Password.");
-
       } catch (err) {
           console.error("Login Error", err);
           alert("An unexpected error occurred during login.");
@@ -375,22 +324,15 @@ const App: React.FC = () => {
   const performStudentCheck = async (e: React.FormEvent) => {
       e.preventDefault();
       setIsAuthenticating(true);
-      const { data: latestStudents } = await supabase.from('students').select('*');
-      const { data: latestPins } = await supabase.from('pins').select('*');
-      
-      const studentList = (latestStudents && latestStudents.length > 0) ? latestStudents : students;
-      const pinList = (latestPins && latestPins.length > 0) ? latestPins : pins;
-
       const admissionInput = loginCreds.admissionNo.trim();
-      const student = studentList.find(s => s.id === admissionInput);
-      const pin = pinList.find(p => p.code === loginCreds.pin.trim());
+      const student = students.find(s => s.id === admissionInput);
+      const pin = pins.find(p => p.code === loginCreds.pin.trim());
 
       if (!student) { alert("Invalid Admission Number."); setIsAuthenticating(false); return; }
       if (!pin) { alert("Invalid PIN."); setIsAuthenticating(false); return; }
       if (pin.assignedStudentId && pin.assignedStudentId !== student.id) { alert("PIN assigned to another student."); setIsAuthenticating(false); return; }
       if (pin.usageCount >= pin.maxUsage) { alert("PIN expired."); setIsAuthenticating(false); return; }
 
-      // Update PIN usage in DB
       const updatedPin = { ...pin, usageCount: pin.usageCount + 1, isUsed: true, assignedStudentId: student.id };
       await supabase.from('pins').update(updatedPin).eq('code', pin.code);
       setPins(prev => prev.map(p => p.code === pin.code ? updatedPin : p));
@@ -410,16 +352,14 @@ const App: React.FC = () => {
 
   const handleSaveResult = async (newResult: Result) => {
     const isAdmin = user?.role === UserRole.ADMIN;
-    let isLocked = isAdmin ? newResult.isLocked : true; // Default lock on submit for teachers
+    let isLocked = isAdmin ? newResult.isLocked : true;
 
     const existing = results.find(r => r.id === newResult.id);
     if (existing && existing.isLocked && !isAdmin) {
         const permission = accessRequests.find(r => r.resourceId === existing.id && r.status === RequestStatus.APPROVED);
         if (permission) {
-            isLocked = true; // Still locked after edit
-            // Consume permission
+            isLocked = true;
             await supabase.from('access_requests').update({ status: RequestStatus.CONSUMED }).eq('id', permission.id);
-            setAccessRequests(prev => prev.map(r => r.id === permission.id ? { ...r, status: RequestStatus.CONSUMED } : r));
         } else {
             if (confirm("Result locked. Request permission?")) {
                 const req = {
@@ -435,15 +375,11 @@ const App: React.FC = () => {
     }
 
     const resultToSave = { ...newResult, isLocked };
-    
-    // Optimistic Update
     setResults(prev => {
         const idx = prev.findIndex(r => r.id === resultToSave.id);
         if (idx >= 0) { const u = [...prev]; u[idx] = resultToSave; return u; }
         return [...prev, resultToSave];
     });
-
-    // DB Update
     await supabase.from('results').upsert(resultToSave);
     addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
   };
@@ -451,36 +387,17 @@ const App: React.FC = () => {
   const handleSaveAttendance = async (newRecords: Attendance[]) => {
       if (newRecords.length === 0) return;
       const { classId, date } = newRecords[0];
-      const resourceId = `${classId}|${date}`;
-      const permission = accessRequests.find(r => r.resourceId === resourceId && r.status === RequestStatus.APPROVED);
-      if (permission) {
-          await supabase.from('access_requests').update({ status: RequestStatus.CONSUMED }).eq('id', permission.id);
-          setAccessRequests(prev => prev.map(r => r.id === permission.id ? { ...r, status: RequestStatus.CONSUMED } : r));
-      }
-
-      // Filter local state
-      const filtered = attendance.filter(a => !(a.classId === classId && a.date === date));
-      const combined = [...filtered, ...newRecords];
+      const combined = [...attendance.filter(a => !(a.classId === classId && a.date === date)), ...newRecords];
       setAttendance(combined);
-
-      // DB Update (Delete old for day, insert new)
       await supabase.from('attendance').delete().eq('classId', classId).eq('date', date);
       await supabase.from('attendance').insert(newRecords);
-      
       addLog(user?.id || 'sys', user?.role || UserRole.FORM_MASTER, 'MARK_ATTENDANCE', `Marked attendance for ${newRecords.length} students`);
       alert("Attendance Saved!");
   };
 
-  // Other critical handlers wrapped for DB sync
   const saveUser = async (u: User) => {
-      // Logic: If password is provided, we send the whole object.
-      // If password is NOT provided (e.g. edit from profile view), we must NOT send an empty password field to upsert, 
-      // or it might overwrite existing password with null.
       const { password, ...rest } = u;
-      
-      // If password exists and is not empty, use full object. Otherwise use rest.
       const payload = (password && password.length > 0) ? u : rest;
-      
       await supabase.from('users').upsert(payload);
       setUsers(prev => { const idx = prev.findIndex(x => x.id === u.id); return idx >= 0 ? prev.map(x => x.id === u.id ? u : x) : [...prev, u]; });
   };
@@ -488,7 +405,6 @@ const App: React.FC = () => {
       await supabase.from('users').delete().eq('id', id);
       setUsers(prev => prev.filter(x => x.id !== id));
   };
-  
   const saveClass = async (c: ClassDefinition) => {
       await supabase.from('classes').upsert(c);
       setClasses(prev => { const idx = prev.findIndex(x => x.id === c.id); return idx >= 0 ? prev.map(x => x.id === c.id ? c : x) : [...prev, c]; });
@@ -497,7 +413,6 @@ const App: React.FC = () => {
       await supabase.from('classes').delete().eq('id', id);
       setClasses(prev => prev.filter(x => x.id !== id));
   };
-
   const saveStudent = async (s: Student) => {
       await supabase.from('students').upsert(s);
       setStudents(prev => { const idx = prev.findIndex(x => x.id === s.id); return idx >= 0 ? prev.map(x => x.id === s.id ? s : x) : [...prev, s]; });
@@ -506,12 +421,10 @@ const App: React.FC = () => {
       await supabase.from('students').delete().eq('id', id);
       setStudents(prev => prev.filter(x => x.id !== id));
   };
-
   const saveConfig = async (cfg: SchoolConfig) => {
       await supabase.from('school_config').upsert({ id: 1, data: cfg });
       setSchoolConfig(cfg);
   };
-  
   const saveSubject = async (s: Subject) => {
       await supabase.from('subjects').upsert(s);
       setSubjects(prev => { const idx = prev.findIndex(x => x.id === s.id); return idx >= 0 ? prev.map(x => x.id === s.id ? s : x) : [...prev, s]; });
@@ -520,7 +433,6 @@ const App: React.FC = () => {
       await supabase.from('subjects').delete().eq('id', id);
       setSubjects(prev => prev.filter(x => x.id !== id));
   };
-
   const handleStaffClockIn = async (record: StaffAttendance) => {
       await supabase.from('staff_attendance').insert(record);
       setStaffAttendance(prev => [record, ...prev]);
@@ -534,9 +446,7 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    if (authView === 'LANDING') {
-      return <LandingPage onNavigate={(type) => { setLoginTab(type); setAuthView('LOGIN'); }} />;
-    }
+    if (authView === 'LANDING') return <LandingPage onNavigate={(type) => { setLoginTab(type); setAuthView('LOGIN'); }} />;
     return <LoginScreen 
         loginTab={loginTab} setLoginTab={setLoginTab} loginCreds={loginCreds} setLoginCreds={setLoginCreds}
         performStudentCheck={performStudentCheck} performStaffLogin={performStaffLogin}
@@ -548,34 +458,33 @@ const App: React.FC = () => {
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={setView}>
       {view === 'dashboard' && (
-          // Dashboard logic mostly read-only from props
           <div className="p-6 text-center">
-              <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
-              {user.role === UserRole.ADMIN && <div className="mt-4"><AuditLogsTable logs={logs.slice(0,5)}/></div>}
+              <h1 className="text-2xl font-bold font-display">Welcome, {user.name}</h1>
+              {user.role === UserRole.ADMIN && <div className="mt-8"><AuditLogsTable logs={logs.slice(0,5)}/></div>}
           </div>
       )}
       {view === 'results' && (
-          // Simplified Result Entry Flow injection
           <div className="p-4">
               <div className="mb-4"><button onClick={() => setView('dashboard')} className="flex items-center text-gray-500 hover:text-blue-600"><ArrowLeftIcon className="h-4 w-4 mr-1"/> Back</button></div>
               {!selectedClassId ? (
-                  <div className="space-y-4">
-                      <select className="border p-2 w-full rounded" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
+                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 max-w-md mx-auto space-y-4">
+                      <h2 className="text-xl font-bold mb-2">Select Context</h2>
+                      <select className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
                           <option value="">Select Class</option>
                           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
-                      <select className="border p-2 w-full rounded" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
+                      <select className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
                           <option value="">Select Subject</option>
                           {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                   </div>
               ) : (
                   <div>
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="font-bold text-lg">{classes.find(c => c.id === selectedClassId)?.name} - {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
-                        <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-sm text-red-500">Change Selection</button>
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="font-bold text-lg font-display text-slate-800">{classes.find(c => c.id === selectedClassId)?.name} - {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
+                        <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-sm font-bold text-blue-600 hover:underline">Change Selection</button>
                       </div>
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         {students.filter(s => s.classId === selectedClassId).map(s => (
                             <ResultEntry 
                                 key={s.id}
@@ -590,19 +499,44 @@ const App: React.FC = () => {
               )}
           </div>
       )}
+      {view === 'attendance' && (
+          <div className="p-4">
+              {!selectedClassId ? (
+                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 max-w-md mx-auto">
+                      <h2 className="text-xl font-bold mb-4 font-display">Select Class for Attendance</h2>
+                      <select 
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                          onChange={e => setSelectedClassId(e.target.value)} 
+                          value={selectedClassId || ''}
+                      >
+                          <option value="">-- Choose Class --</option>
+                          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                  </div>
+              ) : (
+                  <>
+                      <div className="mb-4 flex justify-between items-center">
+                          <button onClick={() => setSelectedClassId(null)} className="flex items-center text-sm font-bold text-blue-600 hover:underline">
+                              ← Change Class
+                          </button>
+                          <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">{classes.find(c => c.id === selectedClassId)?.name}</span>
+                      </div>
+                      <AttendanceRegister 
+                          currentClass={classes.find(c => c.id === selectedClassId)!} 
+                          students={students.filter(s => s.classId === selectedClassId)} 
+                          attendanceRecords={attendance} 
+                          onSaveAttendance={handleSaveAttendance} 
+                          currentUserRole={user.role}
+                      />
+                  </>
+              )}
+          </div>
+      )}
       {view === 'staff_manager' && <StaffManagement users={users} classes={classes} subjects={subjects} onAddUser={saveUser} onUpdateUser={saveUser} onDeleteUser={deleteUser} />}
       {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} />}
       {view === 'students_manager' && <StudentManager students={students} classes={classes} onAdd={saveStudent} onUpdate={saveStudent} onDelete={deleteStudent} schoolConfig={schoolConfig} />}
       {view === 'subjects' && <SubjectManager subjects={subjects} classes={classes} onAdd={saveSubject} onUpdate={saveSubject} onDelete={deleteSubject} />} 
       {view === 'config' && <SchoolConfigManager config={schoolConfig} onSave={saveConfig} />}
-      {view === 'attendance' && selectedClassId && (
-          <AttendanceRegister 
-            currentClass={classes.find(c => c.id === selectedClassId)!} 
-            students={students.filter(s => s.classId === selectedClassId)} 
-            attendanceRecords={attendance} 
-            onSaveAttendance={handleSaveAttendance} 
-          />
-      )}
       {view === 'staff_attendance' && <StaffAttendancePanel user={user} schoolConfig={schoolConfig} attendanceHistory={staffAttendance} onClockIn={handleStaffClockIn} />}
       {view === 'reports' && <ReportsDashboard user={user} students={students} results={results} classes={classes} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} users={users} />}
       {view === 'my_result' && user.role === UserRole.STUDENT && (
