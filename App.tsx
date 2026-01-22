@@ -439,6 +439,15 @@ const App: React.FC = () => {
       addLog(user!.id, user!.role, 'STAFF_ATTENDANCE', `Clocked in at ${record.time}`);
   };
 
+  const handleSavePsychomotor = async (record: PsychomotorRecord) => {
+      await supabase.from('psychomotor').upsert(record);
+      setPsychomotor(prev => {
+          const idx = prev.findIndex(r => r.id === record.id);
+          return idx >= 0 ? prev.map(r => r.id === record.id ? record : r) : [...prev, record];
+      });
+      addLog(user!.id, user!.role, 'UPDATE_PSYCHOMOTOR', `Updated skills assessment for ${record.studentId}`);
+  };
+
   // --- Views ---
   
   if (isLoadingData) {
@@ -531,6 +540,18 @@ const App: React.FC = () => {
                   </>
               )}
           </div>
+      )}
+      {view === 'psychomotor' && (
+          <PsychomotorManager 
+            students={students} 
+            classes={classes} 
+            records={psychomotor} 
+            onSave={handleSavePsychomotor} 
+            userRole={user.role} 
+            assignedClassIds={user.assignedClassIds} 
+            config={schoolConfig} 
+            onUpdateConfig={saveConfig} 
+          />
       )}
       {view === 'staff_manager' && <StaffManagement users={users} classes={classes} subjects={subjects} onAddUser={saveUser} onUpdateUser={saveUser} onDeleteUser={deleteUser} />}
       {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} />}

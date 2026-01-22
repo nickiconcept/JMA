@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Student, ClassDefinition, PsychomotorRecord, UserRole, SchoolConfig, SkillDefinition } from '../types';
 import Button from './Button';
 import { CURRENT_SESSION, CURRENT_TERM } from '../constants';
-import { Cog6ToothIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, TrashIcon, SparklesIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
 
 const RatingInput: React.FC<{ label: string, value: number, onChange: (v: number) => void }> = ({ label, value, onChange }) => (
   <div className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
@@ -46,8 +46,15 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
   const [newSkillName, setNewSkillName] = useState('');
   const [newSkillCategory, setNewSkillCategory] = useState<'AFFECTIVE' | 'PSYCHOMOTOR'>('AFFECTIVE');
 
+  // Auto-select for Form Master
+  useEffect(() => {
+      if (userRole === UserRole.FORM_MASTER && assignedClassIds && assignedClassIds.length === 1 && !selectedClassId) {
+          setSelectedClassId(assignedClassIds[0]);
+      }
+  }, [userRole, assignedClassIds, selectedClassId]);
+
   // Filter classes based on role
-  const visibleClasses = userRole === UserRole.ADMIN 
+  const visibleClasses = userRole === UserRole.ADMIN || userRole === UserRole.PRINCIPAL
     ? classes 
     : classes.filter(c => assignedClassIds?.includes(c.id));
 
@@ -66,7 +73,7 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
       setCurrentRecord({ ...existing });
     } else {
       setCurrentRecord({
-        id: `psy-${Date.now()}`,
+        id: `psy-${Date.now()}-${studentId}`,
         studentId,
         session: CURRENT_SESSION,
         term: CURRENT_TERM,
@@ -108,7 +115,7 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
         </div>
         <div className="mt-4 md:mt-0 flex gap-2">
             {userRole === UserRole.ADMIN && (
-                <Button variant="secondary" onClick={() => setShowSkillConfig(true)} className="px-3">
+                <Button variant="outline" onClick={() => setShowSkillConfig(true)} className="px-3">
                     <Cog6ToothIcon className="h-5 w-5" />
                 </Button>
             )}
@@ -126,7 +133,7 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
       {/* Skill Configuration Modal */}
       {showSkillConfig && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 animate-in zoom-in duration-200">
                  <div className="flex justify-between items-center mb-4">
                      <h3 className="text-lg font-bold text-slate-900">Configure Custom Skills</h3>
                      <button onClick={() => setShowSkillConfig(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
@@ -136,11 +143,11 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
                      <div className="flex gap-2">
                          <input 
                             type="text" placeholder="Skill Name (e.g. Public Speaking)" 
-                            className="flex-1 border p-2 rounded text-sm"
+                            className="flex-1 border p-2 rounded text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
                             value={newSkillName} onChange={e => setNewSkillName(e.target.value)}
                          />
                          <select 
-                            className="border p-2 rounded text-sm"
+                            className="border p-2 rounded text-sm outline-none"
                             value={newSkillCategory} onChange={e => setNewSkillCategory(e.target.value as any)}
                          >
                              <option value="AFFECTIVE">Affective</option>
@@ -150,14 +157,14 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
                      </div>
                  </div>
 
-                 <div className="space-y-4 max-h-60 overflow-y-auto">
-                     <h4 className="text-xs font-bold text-slate-500 uppercase">Existing Custom Skills</h4>
-                     {(!config.customSkills || config.customSkills.length === 0) && <p className="text-sm text-gray-400 italic">No custom skills added.</p>}
+                 <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Existing Custom Skills</h4>
+                     {(!config.customSkills || config.customSkills.length === 0) && <p className="text-sm text-gray-400 italic">No custom skills added yet.</p>}
                      <ul className="space-y-2">
                          {config.customSkills?.map(s => (
-                             <li key={s.id} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                                 <span className="text-sm font-medium">{s.name} <span className="text-xs text-gray-500">({s.category})</span></span>
-                                 <button onClick={() => removeSkill(s.id)} className="text-red-500 hover:text-red-700">
+                             <li key={s.id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                                 <span className="text-sm font-medium">{s.name} <span className="text-[10px] text-gray-400 uppercase ml-1">[{s.category}]</span></span>
+                                 <button onClick={() => removeSkill(s.id)} className="text-red-400 hover:text-red-600 p-1">
                                      <TrashIcon className="h-4 w-4" />
                                  </button>
                              </li>
@@ -169,23 +176,24 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
       )}
 
       {editingStudentId && currentRecord && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10 shadow-sm">
                  <div>
-                    <h3 className="text-lg font-bold font-display text-slate-900">
+                    <h3 className="text-lg font-bold font-display text-slate-900 flex items-center gap-2">
+                      <SparklesIcon className="h-5 w-5 text-blue-500" />
                       {students.find(s => s.id === editingStudentId)?.name}
                     </h3>
-                    <p className="text-xs text-slate-500 font-mono">{editingStudentId}</p>
+                    <p className="text-xs text-slate-500 font-mono tracking-tight">{editingStudentId}</p>
                  </div>
-                 <button onClick={() => setEditingStudentId(null)} className="text-gray-400 hover:text-gray-600">
-                    <span className="text-2xl">×</span>
+                 <button onClick={() => setEditingStudentId(null)} className="text-gray-400 hover:text-gray-600 p-2 bg-gray-50 rounded-full transition-colors">
+                    <span className="text-2xl leading-none">×</span>
                  </button>
               </div>
               
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <div>
-                    <h4 className="text-xs font-bold uppercase text-blue-600 tracking-wider mb-4 border-b border-blue-100 pb-2">Affective Domain</h4>
+                 <div className="space-y-1">
+                    <h4 className="text-[10px] font-black uppercase text-blue-600 tracking-widest mb-4 border-b border-blue-100 pb-2">Affective Domain</h4>
                     {defaultAffective.map(key => (
                          <RatingInput key={key} label={key} value={currentRecord.affective[key] || 0} onChange={(v) => setCurrentRecord({...currentRecord, affective: {...currentRecord.affective, [key]: v}})} />
                     ))}
@@ -194,8 +202,8 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
                     ))}
                  </div>
                  
-                 <div>
-                    <h4 className="text-xs font-bold uppercase text-purple-600 tracking-wider mb-4 border-b border-purple-100 pb-2">Psychomotor Skills</h4>
+                 <div className="space-y-1">
+                    <h4 className="text-[10px] font-black uppercase text-purple-600 tracking-widest mb-4 border-b border-purple-100 pb-2">Psychomotor Skills</h4>
                     {defaultPsychomotor.map(key => (
                          <RatingInput key={key} label={key} value={currentRecord.psychomotor[key] || 0} onChange={(v) => setCurrentRecord({...currentRecord, psychomotor: {...currentRecord.psychomotor, [key]: v}})} />
                     ))}
@@ -205,15 +213,15 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
                  </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 rounded-b-2xl">
+              <div className="p-6 bg-slate-50 border-t border-gray-100 flex justify-end gap-3 rounded-b-2xl sticky bottom-0 z-10">
                  <Button variant="outline" onClick={() => setEditingStudentId(null)}>Cancel</Button>
-                 <Button onClick={handleSaveRecord}>Save Assessment</Button>
+                 <Button onClick={handleSaveRecord} className="shadow-lg shadow-blue-500/20">Save Assessment</Button>
               </div>
            </div>
         </div>
       )}
 
-      {selectedClassId && (
+      {selectedClassId ? (
         <div className="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden">
            <table className="min-w-full divide-y divide-slate-100">
              <thead className="bg-slate-50/50">
@@ -232,12 +240,12 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">{student.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">{student.name}</td>
                       <td className="px-6 py-4 text-center">
-                         <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${hasRecord ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                            {hasRecord ? 'Rated' : 'Pending'}
+                         <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${hasRecord ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                            {hasRecord ? 'Assessment Completed' : 'Pending'}
                          </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                         <button onClick={() => handleEdit(student.id)} className="text-blue-600 hover:text-blue-800 font-bold text-sm">
+                         <button onClick={() => handleEdit(student.id)} className="text-blue-600 hover:text-blue-800 font-bold text-sm transition-colors">
                             {hasRecord ? 'Edit Rating' : 'Rate Student'}
                          </button>
                       </td>
@@ -245,11 +253,19 @@ const PsychomotorManager: React.FC<Props> = ({ students, classes, records, onSav
                  );
                })}
                {filteredStudents.length === 0 && (
-                 <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400">No students found in this class.</td></tr>
+                 <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No students found in this class level.</td></tr>
                )}
              </tbody>
            </table>
         </div>
+      ) : (
+          <div className="bg-white p-20 text-center rounded-2xl border border-dashed border-slate-300">
+              <div className="h-16 w-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                  <SparklesIcon className="h-8 w-8" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-700">Choose a class to assess</h3>
+              <p className="text-slate-400 text-sm max-w-xs mx-auto mt-2">Use the class selector above to load the student list for psychomotor and affective domain ratings.</p>
+          </div>
       )}
     </div>
   );
