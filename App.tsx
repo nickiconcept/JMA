@@ -30,7 +30,6 @@ import { supabase } from './services/supabase';
 
 // --- Simple Error Boundary Component ---
 interface ErrorBoundaryProps {
-  // children made optional to resolve TS error on line 525 where children prop is not explicitly recognized in JSX
   children?: ReactNode;
 }
 
@@ -39,8 +38,8 @@ interface ErrorBoundaryState {
   error?: Error;
 }
 
-// Fixed ErrorBoundary by using explicit Component import and standard property access
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+// Fixed ErrorBoundary to explicitly use React.Component to resolve TS property errors for state, setState, and props.
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) { 
     super(props); 
     this.state = { hasError: false }; 
@@ -224,6 +223,13 @@ const App: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+  // Helper to ensure we have a strictly sanitized user object
+  const sanitizeUser = (u: any): User => ({
+    ...u,
+    assignedClassIds: Array.isArray(u.assignedClassIds) ? u.assignedClassIds : [],
+    assignedSubjectIds: Array.isArray(u.assignedSubjectIds) ? u.assignedSubjectIds : []
+  });
+
   // Initial Data Fetch
   useEffect(() => {
     const fetchData = async () => {
@@ -248,7 +254,7 @@ const App: React.FC = () => {
                 supabase.from('access_requests').select('*')
             ]);
 
-            if (usersRes.data) setUsers(usersRes.data as User[]);
+            if (usersRes.data) setUsers(usersRes.data.map(sanitizeUser));
             if (studentsRes.data) setStudents(studentsRes.data);
             if (classesRes.data) setClasses(classesRes.data);
             if (subjectsRes.data) setSubjects(subjectsRes.data);
@@ -262,8 +268,8 @@ const App: React.FC = () => {
             if (requestsRes.data) setAccessRequests(requestsRes.data);
 
         } catch (e) {
-            console.error("Supabase load error, reverting to mocks", e);
-            setUsers(mockUsers);
+            console.error("Data source failure, using mocks", e);
+            setUsers(mockUsers.map(sanitizeUser));
             setStudents(mockStudents);
             setClasses(mockClasses);
             setSubjects(mockSubjects);
@@ -277,7 +283,7 @@ const App: React.FC = () => {
     fetchData();
   }, []);
 
-  // Session Management
+  // Session Management with automatic sanitization to prevent collection crashes
   useEffect(() => {
     const sessionStr = localStorage.getItem('jma_session');
     if (sessionStr) {
@@ -285,11 +291,11 @@ const App: React.FC = () => {
             const session = JSON.parse(sessionStr);
             const now = new Date().getTime();
             if (session.user && session.expiry > now) {
-                setUser(session.user);
+                setUser(sanitizeUser(session.user));
             } else {
                 localStorage.removeItem('jma_session');
             }
-        } catch(e) { console.error("Session sync error", e); }
+        } catch(e) { console.error("Session integrity error", e); }
     }
   }, []);
 
@@ -309,16 +315,17 @@ const App: React.FC = () => {
     try {
         await supabase.from('audit_logs').insert(newLog);
     } catch (err) {
-        console.error("Log upload failure", err);
+        console.error("Audit log error", err);
     }
   };
 
-  const handleAuthSuccess = (authenticatedUser: User) => {
-      const expiry = new Date().getTime() + (30 * 60 * 1000); // 30min session
-      localStorage.setItem('jma_session', JSON.stringify({ user: authenticatedUser, expiry }));
-      setUser(authenticatedUser);
+  const handleAuthSuccess = (authenticatedUser: any) => {
+      const sanitized = sanitizeUser(authenticatedUser);
+      const expiry = new Date().getTime() + (30 * 60 * 1000); 
+      localStorage.setItem('jma_session', JSON.stringify({ user: sanitized, expiry }));
+      setUser(sanitized);
       setView('dashboard');
-      addLog(authenticatedUser.id, authenticatedUser.role, 'LOGIN_SUCCESS', 'User login protocol complete');
+      addLog(sanitized.id, sanitized.role, 'LOGIN_SUCCESS', 'User login sequence complete');
       setLoginCreds({ email: '', password: '', admissionNo: '', pin: '' });
   };
 
@@ -334,7 +341,7 @@ const App: React.FC = () => {
             password_input: passwordInput
           });
           if (data) {
-              handleAuthSuccess(data as User);
+              handleAuthSuccess(data);
               return;
           }
           const foundLocalUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
@@ -342,7 +349,7 @@ const App: React.FC = () => {
                handleAuthSuccess(foundLocalUser);
                return;
           }
-          alert("Unauthorized: Verify credentials and attempt again.");
+          alert("Credential mismatch or account inactive.");
       } catch (err) {
           console.error("Auth Failure", err);
       } finally {
@@ -357,22 +364,21 @@ const App: React.FC = () => {
       const student = students.find(s => s.id === admissionInput);
       const pin = pins.find(p => p.code === loginCreds.pin.trim());
 
-      if (!student) { alert("ID Error: Admission number not found."); setIsAuthenticating(false); return; }
-      if (!pin) { alert("Access Error: Invalid Result PIN."); setIsAuthenticating(false); return; }
-      if (pin.assignedStudentId && pin.assignedStudentId !== student.id) { alert("Security: PIN assigned to another ID."); setIsAuthenticating(false); return; }
-      if (pin.usageCount >= pin.maxUsage) { alert("PIN Policy: Maximum usage limit reached."); setIsAuthenticating(false); return; }
+      if (!student) { alert("ID unknown."); setIsAuthenticating(false); return; }
+      if (!pin) { alert("PIN invalid."); setIsAuthenticating(false); return; }
+      if (pin.assignedStudentId && pin.assignedStudentId !== student.id) { alert("PIN mapped to other ID."); setIsAuthenticating(false); return; }
+      if (pin.usageCount >= pin.maxUsage) { alert("PIN expired."); setIsAuthenticating(false); return; }
 
       const updatedPin = { ...pin, usageCount: pin.usageCount + 1, isUsed: true, assignedStudentId: student.id };
       await supabase.from('pins').update(updatedPin).eq('code', pin.code);
       setPins(prev => prev.map(p => p.code === pin.code ? updatedPin : p));
       
-      const studentUser: User = { id: student.id, name: student.name, email: `${student.id}@student.school`, role: UserRole.STUDENT, isActive: true, assignedClassIds: [], assignedSubjectIds: [] };
-      handleAuthSuccess(studentUser);
+      handleAuthSuccess({ id: student.id, name: student.name, email: `${student.id}@student.school`, role: UserRole.STUDENT, isActive: true });
       setIsAuthenticating(false);
   };
 
   const handleLogout = () => {
-     if(user) addLog(user.id, user.role, 'LOGOUT', 'Session terminated by user');
+     if(user) addLog(user.id, user.role, 'LOGOUT', 'User closed session');
      localStorage.removeItem('jma_session');
      setUser(null);
      setView('dashboard'); 
@@ -405,7 +411,7 @@ const App: React.FC = () => {
       const { password, ...rest } = u;
       const payload = (password && password.length > 0) ? u : rest;
       await supabase.from('users').upsert(payload);
-      setUsers(prev => { const idx = prev.findIndex(x => x.id === u.id); return idx >= 0 ? prev.map(x => x.id === u.id ? u : x) : [...prev, u]; });
+      setUsers(prev => { const idx = prev.findIndex(x => x.id === u.id); return idx >= 0 ? prev.map(x => x.id === u.id ? sanitizeUser(u) : x) : [...prev, sanitizeUser(u)]; });
   };
   const deleteUser = async (id: string) => {
       await supabase.from('users').delete().eq('id', id);
@@ -490,7 +496,7 @@ const App: React.FC = () => {
       const field = user?.role === UserRole.PRINCIPAL ? 'principalRemark' : 'formMasterRemark';
       const termResults = results.filter(r => r.studentId === studentId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm);
       if (termResults.length === 0) {
-          alert("Audit Error: No terminal data found to apply remark.");
+          alert("No terminal data found to apply remark.");
           return;
       }
       const updated = termResults.map(r => ({ ...r, [field]: remark }));
@@ -507,7 +513,7 @@ const App: React.FC = () => {
       return (
         <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white space-y-4">
             <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent animate-spin rounded-full"></div>
-            <p className="font-black text-[10px] uppercase tracking-widest animate-pulse">Synchronizing Academic Data...</p>
+            <p className="font-black text-[10px] uppercase tracking-widest animate-pulse">Syncing Academic Core...</p>
         </div>
       );
   }
