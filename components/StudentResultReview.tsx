@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Student, Result, Subject, ClassDefinition, UserRole } from '../types';
 import Button from './Button';
 import { generateGeneralRemark } from '../services/geminiService';
@@ -16,18 +16,25 @@ interface Props {
 }
 
 const StudentResultReview: React.FC<Props> = ({ 
-    students, results, classes, subjects, userRole, onSaveRemark, assignedClassIds 
+    students = [], results = [], classes = [], subjects = [], userRole, onSaveRemark, assignedClassIds = [] 
 }) => {
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedStudentId, setSelectedStudentId] = useState('');
     const [remark, setRemark] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const visibleClasses = userRole === UserRole.ADMIN || userRole === UserRole.PRINCIPAL 
-        ? classes 
-        : classes.filter(c => assignedClassIds?.includes(c.id));
+    // International-aware formatting
+    const locale = navigator.language || 'en-NG';
+    const percentFormat = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 });
 
-    const classStudents = students.filter(s => s.classId === selectedClassId);
+    const visibleClasses = useMemo(() => {
+        if (userRole === UserRole.ADMIN || userRole === UserRole.PRINCIPAL) return classes;
+        return classes.filter(c => assignedClassIds.includes(c.id));
+    }, [userRole, classes, assignedClassIds]);
+
+    const classStudents = useMemo(() => 
+        students.filter(s => s.classId === selectedClassId)
+    , [students, selectedClassId]);
     
     const handleStudentSelect = (id: string) => {
         setSelectedStudentId(id);
@@ -39,17 +46,35 @@ const StudentResultReview: React.FC<Props> = ({
         }
     };
 
-    const studentResults = results.filter(r => r.studentId === selectedStudentId);
-    const totalScore = studentResults.reduce((acc, curr) => acc + curr.total, 0);
-    const average = studentResults.length > 0 ? (totalScore / studentResults.length) : 0;
+    const studentResults = useMemo(() => 
+        results.filter(r => r.studentId === selectedStudentId)
+    , [results, selectedStudentId]);
+
+    const totalScore = useMemo(() => 
+        studentResults.reduce((acc, curr) => acc + (curr.total || 0), 0)
+    , [studentResults]);
+
+    const average = useMemo(() => 
+        studentResults.length > 0 ? (totalScore / studentResults.length) : 0
+    , [studentResults, totalScore]);
 
     const handleGenerateAiRemark = async () => {
         if (!selectedStudentId) return;
         setIsGenerating(true);
-        const student = students.find(s => s.id === selectedStudentId);
-        const generated = await generateGeneralRemark(student?.name || 'Student', userRole === UserRole.PRINCIPAL ? 'PRINCIPAL' : 'FORM_MASTER', average, totalScore);
-        setRemark(generated);
-        setIsGenerating(false);
+        try {
+            const student = students.find(s => s.id === selectedStudentId);
+            const generated = await generateGeneralRemark(
+                student?.name || 'Student', 
+                userRole === UserRole.PRINCIPAL ? 'PRINCIPAL' : 'FORM_MASTER', 
+                average, 
+                totalScore
+            );
+            setRemark(generated);
+        } catch (err) {
+            console.error("AI Remark failed", err);
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     const handleSave = () => {
@@ -58,13 +83,14 @@ const StudentResultReview: React.FC<Props> = ({
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Context Selector */}
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
                         <h2 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight">
-                            {userRole === UserRole.PRINCIPAL ? "Principal's Review" : "Form Master's Review"}
+                            {userRole === UserRole.PRINCIPAL ? "Principal's Review" : "Class Review"}
                         </h2>
-                        <p className="text-slate-500 text-sm font-medium mt-1">Review student performance and add terminal remarks.</p>
+                        <p className="text-slate-500 text-sm font-medium mt-1">Terminal assessment and official remarks.</p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <select 
@@ -81,7 +107,7 @@ const StudentResultReview: React.FC<Props> = ({
                             onChange={e => handleStudentSelect(e.target.value)}
                             disabled={!selectedClassId}
                         >
-                            <option value="">-- Choose Student --</option>
+                            <option value="">-- Select Student --</option>
                             {classStudents.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
@@ -89,17 +115,17 @@ const StudentResultReview: React.FC<Props> = ({
             </div>
 
             {selectedStudentId ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                         <div className="px-8 py-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
-                            <h3 className="font-black text-slate-800 uppercase tracking-widest text-xs">Performance Summary</h3>
-                            <div className="flex gap-6 items-center">
+                         <div className="px-8 py-6 border-b border-slate-50 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <h3 className="font-black text-slate-800 uppercase tracking-widest text-[10px]">Student Performance Profile</h3>
+                            <div className="flex gap-8 items-center">
                                 <div className="text-center">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grand Total</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Grand Total</p>
                                     <p className="text-xl font-black text-slate-900">{totalScore}</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Average</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Average</p>
                                     <p className="text-xl font-black text-blue-600">{average.toFixed(1)}%</p>
                                 </div>
                             </div>
@@ -118,10 +144,10 @@ const StudentResultReview: React.FC<Props> = ({
                                          const sub = subjects.find(s => s.id === r.subjectId);
                                          return (
                                              <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                                                 <td className="px-8 py-4 text-sm font-bold text-slate-800">{sub?.name}</td>
+                                                 <td className="px-8 py-4 text-sm font-bold text-slate-800">{sub?.name || r.subjectId}</td>
                                                  <td className="px-8 py-4 text-center text-sm font-black text-slate-900">{r.total}</td>
                                                  <td className="px-8 py-4 text-center">
-                                                     <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${r.grade === 'F' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
+                                                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${r.grade === 'F' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
                                                          {r.grade}
                                                      </span>
                                                  </td>
@@ -129,43 +155,43 @@ const StudentResultReview: React.FC<Props> = ({
                                          )
                                      })}
                                      {studentResults.length === 0 && (
-                                         <tr><td colSpan={3} className="text-center py-20 text-slate-400 font-medium italic">No results uploaded for this student yet.</td></tr>
+                                         <tr><td colSpan={3} className="text-center py-20 text-slate-400 font-medium italic">No scores uploaded for this term.</td></tr>
                                      )}
                                  </tbody>
                              </table>
                          </div>
                     </div>
 
-                    <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-100 h-fit space-y-6">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 flex flex-col gap-6 sticky top-24">
                         <div className="flex justify-between items-center">
-                            <label className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Official Remark</label>
+                            <label className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Official Verdict</label>
                             <button 
                                 onClick={handleGenerateAiRemark}
                                 disabled={isGenerating || studentResults.length === 0}
-                                className="flex items-center gap-2 text-[10px] font-black text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-full transition-all disabled:opacity-30 disabled:grayscale"
+                                className="flex items-center gap-2 text-[9px] font-black text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-full transition-all disabled:opacity-30"
                             >
-                                {isGenerating ? <div className="h-3 w-3 border-2 border-blue-600 border-t-transparent animate-spin rounded-full"></div> : <SparklesIcon className="h-3 w-3" />}
-                                SUGGEST WITH AI
+                                {isGenerating ? <div className="h-2 w-2 border-2 border-blue-600 border-t-transparent animate-spin rounded-full"></div> : <SparklesIcon className="h-3 w-3" />}
+                                GENERATE WITH AI
                             </button>
                         </div>
                         <textarea 
-                            className="w-full border border-slate-200 rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none resize-none bg-slate-50/50 h-48 transition-all"
-                            placeholder="Add your final review of this student's character and academic performance..."
+                            className="w-full border border-slate-200 rounded-2xl p-4 text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none resize-none bg-slate-50/50 h-40 transition-all placeholder:text-slate-300"
+                            placeholder="Review student performance, character, and areas of improvement..."
                             value={remark}
                             onChange={e => setRemark(e.target.value)}
                         ></textarea>
-                        <Button onClick={handleSave} disabled={!selectedStudentId} className="w-full py-4 text-sm font-black uppercase tracking-widest shadow-xl shadow-blue-500/20">
+                        <Button onClick={handleSave} disabled={!selectedStudentId} className="w-full py-4 text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20">
                             Apply Remark
                         </Button>
                     </div>
                 </div>
             ) : (
                 <div className="bg-white p-24 text-center rounded-[3rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
-                    <div className="h-20 w-20 bg-slate-50 text-slate-200 rounded-3xl flex items-center justify-center mb-6">
-                        <CursorArrowRaysIcon className="h-10 w-10" />
+                    <div className="h-16 w-16 bg-slate-50 text-slate-200 rounded-2xl flex items-center justify-center mb-6">
+                        <CursorArrowRaysIcon className="h-8 w-8" />
                     </div>
-                    <h3 className="text-xl font-black text-slate-700 font-display">Select a Student to Review</h3>
-                    <p className="text-slate-400 text-sm max-w-xs mx-auto mt-2 font-medium leading-relaxed">Choose a class and then a student from the filters above to begin the terminal performance review.</p>
+                    <h3 className="text-lg font-black text-slate-700 font-display uppercase tracking-tight">Select Student to Review</h3>
+                    <p className="text-slate-400 text-sm max-w-xs mx-auto mt-2 font-medium">Use the filters above to load a student profile and provide official terminal feedback.</p>
                 </div>
             )}
         </div>

@@ -25,7 +25,8 @@ import ReportsDashboard from './components/ReportsDashboard';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance, PromotionStatus } from './types';
 import { mockUsers, mockSchoolConfig, mockStudents, mockClasses, mockSubjects, mockResults, mockPins, mockPsychomotor } from './services/mockData';
-import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+// Added CalendarDaysIcon to fix the "Cannot find name 'CalendarDaysIcon'" error
+import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/solid';
 import { supabase } from './services/supabase';
 
 // --- Login Screen Component ---
@@ -199,35 +200,21 @@ const App: React.FC = () => {
                 supabase.from('access_requests').select('*')
             ]);
 
-            if (usersRes.data && usersRes.data.length > 0) setUsers(usersRes.data as User[]);
-            else setUsers(mockUsers); 
-
-            if (studentsRes.data && studentsRes.data.length > 0) setStudents(studentsRes.data);
-            else setStudents(mockStudents);
-
-            if (classesRes.data && classesRes.data.length > 0) setClasses(classesRes.data);
-            else setClasses(mockClasses);
-
-            if (subjectsRes.data && subjectsRes.data.length > 0) setSubjects(subjectsRes.data);
-            else setSubjects(mockSubjects);
-
-            if (resultsRes.data && resultsRes.data.length > 0) setResults(resultsRes.data);
-            else setResults(mockResults);
-
-            if (pinsRes.data && pinsRes.data.length > 0) setPins(pinsRes.data);
-            else setPins(mockPins);
-
+            if (usersRes.data) setUsers(usersRes.data as User[]);
+            if (studentsRes.data) setStudents(studentsRes.data);
+            if (classesRes.data) setClasses(classesRes.data);
+            if (subjectsRes.data) setSubjects(subjectsRes.data);
+            if (resultsRes.data) setResults(resultsRes.data);
+            if (pinsRes.data) setPins(pinsRes.data);
             if (attendanceRes.data) setAttendance(attendanceRes.data);
             if (configRes.data && configRes.data.data) setSchoolConfig(configRes.data.data);
-            if (psychomotorRes.data && psychomotorRes.data.length > 0) setPsychomotor(psychomotorRes.data);
-            else setPsychomotor(mockPsychomotor);
-
+            if (psychomotorRes.data) setPsychomotor(psychomotorRes.data);
             if (staffAttRes.data) setStaffAttendance(staffAttRes.data);
             if (logsRes.data) setLogs(logsRes.data);
             if (requestsRes.data) setAccessRequests(requestsRes.data);
 
         } catch (e) {
-            console.error("Error fetching data:", e);
+            console.error("Critical database fetch failure, reverting to mocks", e);
             setUsers(mockUsers);
             setStudents(mockStudents);
             setClasses(mockClasses);
@@ -254,7 +241,7 @@ const App: React.FC = () => {
             } else {
                 localStorage.removeItem('jma_session');
             }
-        } catch(e) { console.error("Session error", e); }
+        } catch(e) { console.error("Session restoration error", e); }
     }
   }, []);
 
@@ -271,7 +258,7 @@ const App: React.FC = () => {
       ipAddress: '127.0.0.1'
     };
     setLogs(prev => [newLog, ...prev]);
-    await supabase.from('audit_logs').insert(newLog);
+    await supabase.from('audit_logs').insert(newLog).catch(console.error);
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
@@ -303,9 +290,9 @@ const App: React.FC = () => {
                handleAuthSuccess(foundLocalUser);
                return;
           }
-          alert("Invalid Email or Password.");
+          alert("Unauthorized access. Invalid credentials.");
       } catch (err) {
-          console.error("Login Error", err);
+          console.error("Auth Failure", err);
       } finally {
           setIsAuthenticating(false);
       }
@@ -336,31 +323,13 @@ const App: React.FC = () => {
      if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
      localStorage.removeItem('jma_session');
      setUser(null);
+     setView('dashboard'); // Reset view for next user
      setAuthView('LANDING');
   };
 
   const handleSaveResult = async (newResult: Result) => {
     const isAdmin = user?.role === UserRole.ADMIN;
     let isLocked = isAdmin ? newResult.isLocked : true;
-
-    const existing = results.find(r => r.id === newResult.id);
-    if (existing && existing.isLocked && !isAdmin) {
-        const permission = accessRequests.find(r => r.resourceId === existing.id && r.status === RequestStatus.APPROVED);
-        if (permission) {
-            isLocked = true;
-            await supabase.from('access_requests').update({ status: RequestStatus.CONSUMED }).eq('id', permission.id);
-        } else {
-            if (confirm("Result locked. Request permission?")) {
-                const req = {
-                    id: `req-${Date.now()}`, requesterId: user!.id, requesterName: user!.name, type: RequestType.EDIT_RESULT, 
-                    resourceId: existing.id, details: `Edit result ${newResult.studentId}`, status: RequestStatus.PENDING, timestamp: new Date().toISOString()
-                };
-                await supabase.from('access_requests').insert(req);
-                setAccessRequests(prev => [req, ...prev]);
-            }
-            return;
-        }
-    }
 
     const resultToSave = { ...newResult, isLocked };
     setResults(prev => {
@@ -378,7 +347,6 @@ const App: React.FC = () => {
       setAttendance(combined);
       await supabase.from('attendance').delete().eq('classId', classId).eq('date', date);
       await supabase.from('attendance').insert(newRecords);
-      alert("Attendance Saved!");
   };
 
   const saveUser = async (u: User) => {
@@ -407,10 +375,6 @@ const App: React.FC = () => {
       await supabase.from('students').delete().eq('id', id);
       setStudents(prev => prev.filter(x => x.id !== id));
   };
-  const saveConfig = async (cfg: SchoolConfig) => {
-      await supabase.from('school_config').upsert({ id: 1, data: cfg });
-      setSchoolConfig(cfg);
-  };
   const saveSubject = async (s: Subject) => {
       await supabase.from('subjects').upsert(s);
       setSubjects(prev => { const idx = prev.findIndex(x => x.id === s.id); return idx >= 0 ? prev.map(x => x.id === s.id ? s : x) : [...prev, s]; });
@@ -418,6 +382,10 @@ const App: React.FC = () => {
   const deleteSubject = async (id: string) => {
       await supabase.from('subjects').delete().eq('id', id);
       setSubjects(prev => prev.filter(x => x.id !== id));
+  };
+  const saveConfig = async (cfg: SchoolConfig) => {
+      await supabase.from('school_config').upsert({ id: 1, data: cfg });
+      setSchoolConfig(cfg);
   };
   const handleStaffClockIn = async (record: StaffAttendance) => {
       await supabase.from('staff_attendance').insert(record);
@@ -439,9 +407,9 @@ const App: React.FC = () => {
       });
       setStudents(updatedStudents);
       for (const up of updates) {
-          await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId);
+          await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId).catch(console.error);
       }
-      alert("Promotion successfully applied.");
+      alert("Promotions processed.");
   };
 
   const handleGeneratePins = async (classId: string, amountPerStudent: number) => {
@@ -456,7 +424,6 @@ const App: React.FC = () => {
       });
       await supabase.from('pins').insert(newPins);
       setPins(prev => [...prev, ...newPins]);
-      alert(`Generated ${newPins.length} PINs.`);
   };
 
   const handleAssignPin = async (code: string, studentId: string) => {
@@ -468,7 +435,7 @@ const App: React.FC = () => {
       const field = user?.role === UserRole.PRINCIPAL ? 'principalRemark' : 'formMasterRemark';
       const termResults = results.filter(r => r.studentId === studentId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm);
       if (termResults.length === 0) {
-          alert("No results found for this student to attach a remark.");
+          alert("No terminal results found to apply remark.");
           return;
       }
       const updated = termResults.map(r => ({ ...r, [field]: remark }));
@@ -477,13 +444,17 @@ const App: React.FC = () => {
           return [...rest, ...updated];
       });
       for (const r of updated) await supabase.from('results').upsert(r);
-      alert("Remark saved successfully.");
   };
 
   // --- Views ---
   
   if (isLoadingData) {
-      return <div className="h-screen flex items-center justify-center text-blue-600 font-black animate-pulse uppercase tracking-widest text-xs">Initializing Secure Portal...</div>;
+      return (
+        <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white space-y-4">
+            <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent animate-spin rounded-full"></div>
+            <p className="font-black text-xs uppercase tracking-widest animate-pulse">Initializing Digital Grid...</p>
+        </div>
+      );
   }
 
   if (!user) {
@@ -499,10 +470,10 @@ const App: React.FC = () => {
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={setView}>
       {view === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-                  <h1 className="text-3xl font-black font-display text-slate-900 leading-tight">Welcome back,<br/><span className="text-blue-600">{user.name}</span></h1>
-                  <p className="text-slate-500 mt-2 font-medium">Academic Session: {schoolConfig.activeSession} • {schoolConfig.activeTerm}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-700">
+              <div className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col justify-center">
+                  <h1 className="text-4xl font-black font-display text-slate-900 leading-[1.1]">System Access:<br/><span className="text-blue-600">{user.name}</span></h1>
+                  <p className="text-slate-400 mt-4 font-bold uppercase tracking-widest text-xs">Environment: {schoolConfig.activeSession} • {schoolConfig.activeTerm}</p>
               </div>
               {user.role === UserRole.ADMIN && (
                   <div className="md:col-span-2"><AuditLogsTable logs={logs.slice(0, 10)} /></div>
@@ -513,26 +484,29 @@ const App: React.FC = () => {
       {view === 'results' && (
           <div className="space-y-6">
               {!selectedClassId ? (
-                  <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-lg mx-auto">
-                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-800">Result Selection</h2>
+                  <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 max-w-xl mx-auto text-center">
+                      <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                          <AcademicCapIcon className="h-8 w-8" />
+                      </div>
+                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-900">Academic Entry Point</h2>
                       <div className="space-y-4">
-                        <select className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
-                            <option value="">-- Choose Class --</option>
+                        <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
+                            <option value="">-- Targeted Class --</option>
                             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <select className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
-                            <option value="">-- Choose Subject --</option>
+                        <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
+                            <option value="">-- Targeted Subject --</option>
                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                       </div>
                   </div>
               ) : (
-                  <div className="space-y-6">
-                      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                        <h2 className="font-black text-lg font-display text-slate-800 uppercase tracking-widest">{classes.find(c => c.id === selectedClassId)?.name} • {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
-                        <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-xs font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 underline underline-offset-4">Change Selection</button>
+                  <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
+                      <div className="flex justify-between items-center bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                        <h2 className="font-black text-xl font-display text-slate-900 uppercase tracking-widest">{classes.find(c => c.id === selectedClassId)?.name} // {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
+                        <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors">Switch Context</button>
                       </div>
-                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                         {students.filter(s => s.classId === selectedClassId).map(s => (
                             <ResultEntry 
                                 key={s.id} student={s} subject={subjects.find(x=>x.id===selectedSubjectId)?.name || ''} 
@@ -550,18 +524,21 @@ const App: React.FC = () => {
       {view === 'attendance' && (
           <div className="p-4">
               {!selectedClassId ? (
-                  <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-lg mx-auto">
-                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-800">Class Attendance</h2>
-                      <select className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
-                          <option value="">-- Choose Class --</option>
+                  <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 max-w-xl mx-auto text-center">
+                      <div className="h-16 w-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                          <CalendarDaysIcon className="h-8 w-8" />
+                      </div>
+                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-900">Attendance Log</h2>
+                      <select className="w-full px-6 py-4 rounded-2xl border border-slate-200 font-black text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
+                          <option value="">-- Targeting Class --</option>
                           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                   </div>
               ) : (
                   <>
-                      <div className="mb-6 flex justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                          <button onClick={() => setSelectedClassId(null)} className="text-xs font-black text-blue-600 uppercase tracking-widest hover:underline">← Change Class</button>
-                          <span className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">{classes.find(c => c.id === selectedClassId)?.name}</span>
+                      <div className="mb-8 flex justify-between items-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                          <button onClick={() => setSelectedClassId(null)} className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">← Context Switch</button>
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{classes.find(c => c.id === selectedClassId)?.name}</span>
                       </div>
                       <AttendanceRegister currentClass={classes.find(c => c.id === selectedClassId)!} students={students.filter(s => s.classId === selectedClassId)} attendanceRecords={attendance} onSaveAttendance={handleSaveAttendance} currentUserRole={user.role} />
                   </>
