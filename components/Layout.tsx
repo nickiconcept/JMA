@@ -14,15 +14,14 @@ import {
   UsersIcon,
   BookOpenIcon,
   ChartPieIcon,
+  PrinterIcon,
   Bars3Icon,
   XMarkIcon,
   ArrowTrendingUpIcon,
   SparklesIcon,
   Cog6ToothIcon,
   PencilSquareIcon,
-  MapPinIcon,
-  ClockIcon,
-  DocumentChartBarIcon
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -36,12 +35,16 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, onChangeView }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Lock body scroll when mobile menu is open
   useEffect(() => {
     if (isSidebarOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isSidebarOpen]);
 
   if (!user) return <>{children}</>;
@@ -56,139 +59,140 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, currentView, 
     return (
       <button
         onClick={() => handleNavClick(view)}
-        className={`w-full flex items-center justify-start space-x-3 px-6 py-4 text-sm font-semibold transition-all duration-200 group border-l-4 ${
+        className={`w-full flex items-center space-x-3 px-6 py-3.5 text-sm font-medium transition-all duration-200 group rounded-r-2xl mr-4 ${
           isActive
-            ? 'bg-blue-600/10 text-blue-400 border-blue-500 shadow-inner' 
-            : 'text-slate-400 hover:bg-slate-800/40 hover:text-white border-transparent'
+            ? 'bg-blue-600/10 text-blue-400 border-l-4 border-blue-500' 
+            : 'text-slate-400 hover:bg-slate-800 hover:text-white border-l-4 border-transparent'
         }`}
       >
-        <Icon className={`h-5 w-5 shrink-0 transition-transform ${isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-white'}`} />
-        <span className="font-display tracking-wide truncate">{label}</span>
+        <Icon className={`h-5 w-5 transition-transform group-hover:scale-110 ${isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-white'}`} />
+        <span className="font-display tracking-wide">{label}</span>
       </button>
     );
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans" dir="ltr">
-      {/* Mobile Overlay */}
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+      {/* Mobile Sidebar Overlay */}
       <div 
-        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${
+          isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
         onClick={() => setIsSidebarOpen(false)}
       ></div>
 
-      {/* Sidebar - Fixed/Relative mix for stability */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:relative md:translate-x-0 shrink-0
+        md:relative md:translate-x-0
       `}>
-        <div className="p-6 flex justify-between items-center border-b border-slate-800/50 shrink-0 bg-slate-950/20">
-          <div className="overflow-hidden">
-            <h1 className="text-lg font-black font-display text-white tracking-tight uppercase truncate">{SCHOOL_NAME}</h1>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1">
-                <span className="h-1 w-1 bg-emerald-500 rounded-full animate-pulse"></span> Security-Audit Ready
-            </p>
+        <div className="p-8 flex justify-between items-center border-b border-slate-800/50 shrink-0">
+          <div>
+            <h1 className="text-xl font-black font-display text-white tracking-tight leading-none uppercase">{SCHOOL_NAME}</h1>
+            <div className="flex items-center gap-2 mt-2">
+                <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Portal v2.0</p>
+            </div>
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white p-1">
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-400 hover:text-white transition-colors p-2">
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
 
-        {/* Scrollable Nav - Optimized with explicit height container */}
-        <nav className="flex-1 overflow-y-auto py-4 space-y-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-          <NavItem view="dashboard" icon={HomeIcon} label="Dashboard" />
+        <div className="flex-1 overflow-y-auto py-6 space-y-1 scroll-container">
+          <NavItem view="dashboard" icon={HomeIcon} label="Overview" />
 
-          {user.role !== UserRole.STUDENT && (
+          {/* Teacher & Form Master & Admin - Result Entry */}
+          {(user.role === UserRole.TEACHER || user.role === UserRole.FORM_MASTER || user.role === UserRole.ADMIN || user.role === UserRole.PRINCIPAL) && (
             <>
-               <div className="mt-6 mb-2 px-6 text-[10px] font-black uppercase text-slate-600 tracking-widest">Teaching Tools</div>
                <NavItem view="results" icon={AcademicCapIcon} label="Result Entry" />
+               {/* Staff Attendance Link */}
                <NavItem view="staff_attendance" icon={MapPinIcon} label="My Attendance" />
             </>
           )}
 
+          {/* Form Master Specific */}
           {(user.role === UserRole.FORM_MASTER || user.role === UserRole.ADMIN) && (
              <>
-               <div className="mt-6 mb-2 px-6 text-[10px] font-black uppercase text-slate-600 tracking-widest">Classroom</div>
-               <NavItem view="attendance" icon={CalendarDaysIcon} label="Attendance" />
+               <NavItem view="attendance" icon={CalendarDaysIcon} label="Class Attendance" />
                <NavItem view="class_manager" icon={UserGroupIcon} label="My Class" />
-               <NavItem view="psychomotor" icon={SparklesIcon} label="Psychomotor" />
+               <NavItem view="psychomotor" icon={SparklesIcon} label="Psychomotor Skills" />
                <NavItem view="fm_review" icon={PencilSquareIcon} label="Student Review" />
              </>
           )}
 
+           {/* Principal & Admin Specific */}
           {(user.role === UserRole.PRINCIPAL || user.role === UserRole.ADMIN) && (
              <>
-                <div className="mt-6 mb-2 px-6 text-[10px] font-black uppercase text-slate-600 tracking-widest">Management</div>
                 <NavItem view="insights" icon={ChartPieIcon} label="Analytics" />
                 <NavItem view="approvals" icon={ClipboardDocumentCheckIcon} label="Approvals" />
                 <NavItem view="principal_review" icon={PencilSquareIcon} label="Principal's Review" />
-                <NavItem view="reports" icon={DocumentChartBarIcon} label="Broadsheets" />
              </>
           )}
 
+          {/* Printing - Admin Only */}
+          {user.role === UserRole.ADMIN && (
+              <NavItem view="print_results" icon={PrinterIcon} label="Print Results" />
+          )}
+
+          {/* Admin Only Management */}
           {user.role === UserRole.ADMIN && (
              <>
-              <div className="mt-6 mb-2 px-6 text-[10px] font-black uppercase text-slate-600 tracking-widest">Admin Desk</div>
-              <NavItem view="config" icon={Cog6ToothIcon} label="Settings" />
+              <div className="mt-8 mb-2 px-6 text-[10px] font-black uppercase text-slate-500 tracking-widest">Administration</div>
+              <NavItem view="config" icon={Cog6ToothIcon} label="Portal Configuration" />
               <NavItem view="promotions" icon={ArrowTrendingUpIcon} label="Promotions" />
-              <NavItem view="pins" icon={KeyIcon} label="PINs" />
-              <NavItem view="staff_manager" icon={UsersIcon} label="Staff" />
-              <NavItem view="subjects" icon={BookOpenIcon} label="Curriculum" />
+              <NavItem view="staff_manager" icon={UsersIcon} label="Staff & Users" />
+              <NavItem view="subjects" icon={BookOpenIcon} label="Subjects & Classes" />
               <NavItem view="students_manager" icon={UserGroupIcon} label="Students" />
-              <NavItem view="admin_attendance" icon={ClockIcon} label="Staff Logs" />
-              <NavItem view="audit" icon={ClipboardDocumentCheckIcon} label="Audit" />
+              <NavItem view="pins" icon={KeyIcon} label="PIN Manager" />
+              <NavItem view="audit" icon={ClipboardDocumentCheckIcon} label="Audit Logs" />
              </>
           )}
 
+          {/* Student Specific */}
           {user.role === UserRole.STUDENT && (
             <NavItem view="my_result" icon={ChartBarIcon} label="My Report Card" />
           )}
-        </nav>
-        
-        <div className="p-4 border-t border-slate-800/30 text-[9px] text-slate-600 font-bold uppercase tracking-widest text-center">
-            &copy; {new Date().getFullYear()} JMA Portal
         </div>
-      </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
-        
-        {/* Top Header - Fixed */}
-        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 shrink-0 z-30 shadow-sm">
-           <div className="flex items-center space-x-3 md:hidden">
-             <button onClick={() => setIsSidebarOpen(true)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100">
+        <div className="p-4 bg-slate-950/50 border-t border-slate-800 shrink-0">
+          <div className="flex items-center mb-4 space-x-3 p-2">
+            <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-lg ring-2 ring-blue-500/20">
+              {user.name.charAt(0)}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-bold text-white truncate font-display">{user.name}</p>
+              <p className="text-xs text-slate-400 truncate font-medium">{user.role.replace('_', ' ')}</p>
+            </div>
+          </div>
+          <button 
+            onClick={onLogout}
+            className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-red-600/10 hover:text-red-500 text-slate-300 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all duration-200 border border-transparent hover:border-red-500/20 active:scale-95"
+          >
+            <ArrowRightOnRectangleIcon className="h-4 w-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full w-full relative">
+        {/* Mobile Header */}
+        <header className="md:hidden bg-white/90 backdrop-blur-md text-slate-800 p-4 flex justify-between items-center shadow-sm z-30 sticky top-0 border-b border-slate-200">
+           <div className="flex items-center space-x-3">
+             <button onClick={() => setIsSidebarOpen(true)} className="text-slate-600 hover:text-blue-600 transition-colors p-2 -ml-2 rounded-lg active:bg-slate-100">
                <Bars3Icon className="h-6 w-6" />
              </button>
-             <h1 className="text-sm font-black font-display text-slate-900 truncate uppercase">{SCHOOL_NAME}</h1>
+             <h1 className="text-lg font-bold font-display text-slate-800 truncate max-w-[200px]">{SCHOOL_NAME}</h1>
            </div>
-
-           <div className="hidden md:flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-blue-500 shadow-glow"></span>
-              <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{currentView.replace(/_/g, ' ')}</h2>
-           </div>
-
-           <div className="flex items-center gap-4">
-              <div className="hidden sm:flex flex-col items-end border-r border-slate-200 pr-4 mr-2">
-                 <span className="text-xs font-black text-slate-900 leading-none mb-1">{user.name}</span>
-                 <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{user.role.replace('_', ' ')}</span>
-              </div>
-              <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">
-                 {user.name.charAt(0)}
-              </div>
-              <button 
-                onClick={onLogout}
-                className="flex items-center gap-2 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                title="Sign Out"
-              >
-                <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                <span className="text-[10px] font-black uppercase hidden lg:inline">Sign Out</span>
-              </button>
+           <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm border border-blue-200">
+              {user.name.charAt(0)}
            </div>
         </header>
 
-        {/* Scrollable Content Container */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10 scroll-smooth relative">
-          <div className="max-w-7xl mx-auto pb-20">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-4 md:p-8 w-full scroll-smooth scroll-container">
+          <div className="max-w-7xl mx-auto space-y-6 pb-20 md:pb-10">
             {children}
           </div>
         </main>

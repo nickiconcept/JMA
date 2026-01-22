@@ -1,17 +1,18 @@
 
 import React, { useState } from 'react';
-import { Subject, ClassDefinition } from '../types';
+import { Subject } from '../types';
 import Button from './Button';
 
 interface Props {
   subjects: Subject[];
-  classes: ClassDefinition[];
   onAdd: (sub: Subject) => void;
   onUpdate: (sub: Subject) => void;
   onDelete: (id: string) => void;
 }
 
-const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, onDelete }) => {
+const CLASS_LEVELS = ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"];
+
+const SubjectManager: React.FC<Props> = ({ subjects, onAdd, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentSubject, setCurrentSubject] = useState<Partial<Subject>>({ isCore: true, compatibleLevels: [] });
 
@@ -36,13 +37,11 @@ const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, o
       }
   };
 
-  const availableLevels = classes.map(c => c.name).sort();
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800">Subject Management</h2>
-        <Button onClick={() => { setCurrentSubject({ isCore: true, compatibleLevels: [] }); setIsEditing(true); }}>+ Add Subject</Button>
+        <Button onClick={() => setIsEditing(true)}>+ Add Subject</Button>
       </div>
 
       {isEditing && (
@@ -62,7 +61,7 @@ const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, o
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Mapped Class Levels (Leave empty for All)</label>
                 <div className="flex flex-wrap gap-2">
-                    {availableLevels.length > 0 ? availableLevels.map(level => (
+                    {CLASS_LEVELS.map(level => (
                         <button
                             key={level}
                             type="button"
@@ -75,9 +74,7 @@ const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, o
                         >
                             {level}
                         </button>
-                    )) : (
-                        <p className="text-xs text-gray-400">No classes defined. Create classes to map specific subjects.</p>
-                    )}
+                    ))}
                 </div>
             </div>
 
@@ -92,7 +89,7 @@ const SubjectManager: React.FC<Props> = ({ subjects, classes, onAdd, onUpdate, o
             </div>
             
             <div className="flex space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => { setIsEditing(false); setCurrentSubject({ isCore: true, compatibleLevels: [] }); }}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
               <Button type="submit">Save</Button>
             </div>
           </form>

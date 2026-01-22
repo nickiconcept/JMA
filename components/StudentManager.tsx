@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Student, ClassDefinition, PromotionStatus, SchoolConfig } from '../types';
+import { Student, ClassDefinition, PromotionStatus } from '../types';
 import Button from './Button';
 
 interface Props {
@@ -9,10 +9,9 @@ interface Props {
   onAdd: (student: Student) => void;
   onUpdate: (student: Student) => void;
   onDelete: (id: string) => void;
-  schoolConfig: SchoolConfig;
 }
 
-const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, onDelete, schoolConfig }) => {
+const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, onDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentStudent, setCurrentStudent] = useState<Partial<Student>>({});
   const [filterClass, setFilterClass] = useState<string>('ALL');
@@ -21,41 +20,12 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [targetClassId, setTargetClassId] = useState<string>('');
 
-  // Helper to generate serial admission numbers
-  const generateAdmissionNo = (offset: number = 0) => {
-    // 1. Get format from config or default
-    const format = schoolConfig.admissionNumberFormat || 'JMA/{YY}/';
-    
-    // 2. Determine current year short code (e.g. 26 for 2026)
-    const currentYearShort = new Date().getFullYear().toString().slice(-2);
-    
-    // 3. Construct the prefix (e.g. JMA/26/)
-    const prefix = format.replace('{YY}', currentYearShort);
-    
-    // 4. Find existing IDs that start with this prefix to determine sequence
-    const existingNums = students
-        .filter(s => s.id.startsWith(prefix))
-        .map(s => {
-            // Extract the suffix part (after the prefix)
-            const suffix = s.id.slice(prefix.length);
-            return parseInt(suffix, 10);
-        })
-        .filter(n => !isNaN(n));
-    
-    // 5. Calculate next number
-    const max = existingNums.length > 0 ? Math.max(...existingNums) : 0;
-    const next = max + 1 + offset;
-    
-    // 6. Return formatted ID (e.g. JMA/26/0001)
-    return `${prefix}${next.toString().padStart(4, '0')}`;
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStudent.id && students.some(s => s.id === currentStudent.id && isEditing)) {
       onUpdate(currentStudent as Student);
     } else {
-      const admissionNo = currentStudent.id || generateAdmissionNo();
+      const admissionNo = currentStudent.id || `JMA/24/${Math.floor(Math.random() * 1000)}`;
       onAdd({ ...currentStudent, id: admissionNo, promotionStatus: PromotionStatus.PENDING } as Student);
     }
     setIsEditing(false);
@@ -81,13 +51,11 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
           const lines = csv.split('\n');
           let addedCount = 0;
           lines.forEach((line, index) => {
-              if (index === 0) return; // Skip header
+              if (index === 0) return; 
               const [name, classId] = line.split(',').map(item => item.trim());
               if (name && classId && classes.some(c => c.id === classId)) {
-                  // Use addedCount as offset to ensure uniqueness in this batch
-                  const newId = generateAdmissionNo(addedCount);
                   onAdd({
-                      id: newId,
+                      id: `JMA/24/${Math.floor(Math.random() * 90000) + 10000}`,
                       name: name,
                       classId: classId,
                       promotionStatus: PromotionStatus.PENDING
@@ -99,27 +67,6 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
       };
       reader.readAsText(file);
       if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const downloadTemplate = () => {
-      // Header
-      let csvContent = "Name,ClassID\n";
-      
-      // Generate example rows for ALL available classes to guide the user
-      if (classes.length > 0) {
-          csvContent += classes.map((c, index) => `Student Name ${index + 1},${c.id}`).join('\n');
-      } else {
-          csvContent += "John Doe,JSS1\nJane Smith,SSS2";
-      }
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "student_bulk_upload_template.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
   };
 
   const filteredStudents = filterClass === 'ALL' 
@@ -167,7 +114,6 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
   };
 
   const inputClass = "w-full px-4 py-2 rounded-xl border border-slate-200 bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none text-sm";
-  const previewNextId = generateAdmissionNo();
 
   return (
     <div className="space-y-8">
@@ -178,7 +124,6 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
         </div>
         <div className="flex space-x-2 items-center">
              <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload}/>
-            <Button variant="outline" onClick={downloadTemplate} className="text-sm">Download Template</Button>
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>Bulk Upload</Button>
             <Button onClick={() => setIsEditing(true)}>+ Register Student</Button>
         </div>
@@ -223,8 +168,8 @@ const StudentManager: React.FC<Props> = ({ students, classes, onAdd, onUpdate, o
               </select>
             </div>
              <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Admission No <span className="font-normal text-slate-400">(Auto: {previewNextId})</span></label>
-              <input type="text" className={inputClass} value={currentStudent.id || ''} onChange={e => setCurrentStudent({...currentStudent, id: e.target.value})} disabled={!!(currentStudent.id && isEditing)} placeholder={previewNextId} />
+              <label className="block text-sm font-bold text-slate-700 mb-2">Admission No <span className="font-normal text-slate-400">(Auto-generated if empty)</span></label>
+              <input type="text" className={inputClass} value={currentStudent.id || ''} onChange={e => setCurrentStudent({...currentStudent, id: e.target.value})} disabled={!!(currentStudent.id && isEditing)} />
             </div>
             <div className="md:col-span-2 flex justify-end space-x-3 mt-4">
               <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>

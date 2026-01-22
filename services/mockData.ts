@@ -105,8 +105,7 @@ export const mockSchoolConfig: SchoolConfig = {
     totalLabel: 'Total',
     gradeLabel: 'Grade',
     remarkLabel: 'Remark'
-  },
-  admissionNumberFormat: "JMA/{YY}/"
+  }
 };
 
 export const mockPsychomotor: PsychomotorRecord[] = [

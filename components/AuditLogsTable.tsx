@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AuditLog } from '../types';
 
@@ -7,19 +6,8 @@ interface Props {
 }
 
 const AuditLogsTable: React.FC<Props> = ({ logs }) => {
-  // Use dynamic locale for internationalization
-  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-NG';
-  const dateFormatter = new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-
   return (
-    <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden" dir="auto">
+    <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">System Audit Logs</h3>
         <button className="text-sm text-green-700 hover:underline">Export CSV</button>
@@ -39,12 +27,11 @@ const AuditLogsTable: React.FC<Props> = ({ logs }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {logs.map((log) => (
               <tr key={log.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                  {dateFormatter.format(new Date(log.timestamp))}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {new Date(log.timestamp).toLocaleString('en-NG')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {log.userName || log.userId}
-                  {log.userName && <span className="block text-xs text-gray-400 font-mono font-normal">{log.userId}</span>}
+                  {log.userId}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -53,13 +40,13 @@ const AuditLogsTable: React.FC<Props> = ({ logs }) => {
                     {log.userRole}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-bold">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                   {log.action}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={log.details}>
+                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                   {log.details}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {log.ipAddress}
                 </td>
               </tr>

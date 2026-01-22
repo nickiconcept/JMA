@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { SchoolConfig, Term } from '../types';
 import Button from './Button';
-import { PhotoIcon, CalendarDaysIcon, MapPinIcon, Cog6ToothIcon, IdentificationIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, CalendarDaysIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface Props {
   config: SchoolConfig;
@@ -29,20 +29,6 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
             [name]: value
         }
     }));
-  };
-
-  const handleReportOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, checked } = e.target;
-      setFormData(prev => ({
-          ...prev,
-          reportOptions: {
-              ...(prev.reportOptions || {
-                  showPosition: true, showTotalStudents: true, showClassStats: true, 
-                  showSubjectAverage: true, showSubjectMinMax: true, showSubjectPosition: true 
-              }),
-              [name]: checked
-          }
-      }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'principalSignature') => {
@@ -170,59 +156,6 @@ const SchoolConfigManager: React.FC<Props> = ({ config, onSave }) => {
                   />
                </div>
              </div>
-          </div>
-
-          {/* Admission Configuration */}
-          <div className="border-t border-slate-100 pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                 <IdentificationIcon className="h-6 w-6 text-purple-600" />
-                 <h3 className="text-lg font-bold text-slate-800">Admission Settings</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-purple-50 p-6 rounded-xl border border-purple-100">
-                  <div>
-                      <label className="block text-sm font-bold text-purple-800 mb-2">Admission Number Format</label>
-                      <input 
-                        type="text" name="admissionNumberFormat"
-                        value={formData.admissionNumberFormat || 'JMA/{YY}/'} 
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 rounded-xl border border-purple-200 focus:border-purple-500 outline-none bg-white"
-                        placeholder="JMA/{YY}/"
-                      />
-                      <p className="text-xs text-purple-700 mt-2">
-                        Use <strong>{'{YY}'}</strong> as a placeholder for the last 2 digits of the current year (e.g. 26).
-                        Example: <code>JMA/{'{YY}'}/</code> becomes <code>JMA/26/0001</code>.
-                      </p>
-                  </div>
-              </div>
-          </div>
-
-          {/* Report Card Feature Toggle */}
-          <div className="border-t border-slate-100 pt-6">
-              <div className="flex items-center gap-2 mb-4">
-                 <Cog6ToothIcon className="h-6 w-6 text-indigo-600" />
-                 <h3 className="text-lg font-bold text-slate-800">Result Sheet Options</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                  {[
-                      { key: 'showPosition', label: 'Show Student Position in Class' },
-                      { key: 'showTotalStudents', label: 'Show Total Students in Class' },
-                      { key: 'showClassStats', label: 'Show Class Highest/Lowest Average' },
-                      { key: 'showSubjectAverage', label: 'Show Subject Average' },
-                      { key: 'showSubjectMinMax', label: 'Show Subject High/Low Score' },
-                      { key: 'showSubjectPosition', label: 'Show Subject Position' },
-                  ].map((opt) => (
-                      <label key={opt.key} className="flex items-center gap-3 p-2 rounded hover:bg-white/50 cursor-pointer">
-                          <input 
-                              type="checkbox" 
-                              name={opt.key}
-                              checked={!!formData.reportOptions?.[opt.key as keyof typeof formData.reportOptions]}
-                              onChange={handleReportOptionChange}
-                              className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
-                          />
-                          <span className="text-sm font-medium text-slate-700">{opt.label}</span>
-                      </label>
-                  ))}
-              </div>
           </div>
 
           {/* Staff Attendance Geofencing */}

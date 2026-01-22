@@ -172,16 +172,22 @@ const ClassManager: React.FC<Props> = ({
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Class Name</label>
-              <input 
-                type="text" 
+              <select 
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2"
                 value={currentClass.name || ''}
                 onChange={e => setCurrentClass({...currentClass, name: e.target.value})}
-                placeholder="e.g. JSS 1, Grade 7, Nursery A"
                 required
-              />
+              >
+                <option value="">Select Level</option>
+                <option value="JSS 1">JSS 1</option>
+                <option value="JSS 2">JSS 2</option>
+                <option value="JSS 3">JSS 3</option>
+                <option value="SSS 1">SSS 1</option>
+                <option value="SSS 2">SSS 2</option>
+                <option value="SSS 3">SSS 3</option>
+              </select>
             </div>
-            
+            {/* Arms Option Removed */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Form Master</label>
               <select 
