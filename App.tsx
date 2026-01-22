@@ -23,7 +23,7 @@ import StaffAttendancePanel from './components/StaffAttendancePanel';
 import AdminStaffAttendance from './components/AdminStaffAttendance';
 import ReportsDashboard from './components/ReportsDashboard';
 
-import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance } from './types';
+import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance, PromotionStatus } from './types';
 import { mockUsers, mockSchoolConfig, mockStudents, mockClasses, mockSubjects, mockResults, mockPins, mockPsychomotor } from './services/mockData';
 import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, KeyIcon } from '@heroicons/react/24/solid';
 import { supabase } from './services/supabase';
@@ -448,6 +448,76 @@ const App: React.FC = () => {
       addLog(user!.id, user!.role, 'UPDATE_PSYCHOMOTOR', `Updated skills assessment for ${record.studentId}`);
   };
 
+  // --- New Handlers for Missing Views ---
+
+  const handlePromoteStudentsBatch = async (updates: { studentId: string; newClassId: string; status: PromotionStatus }[]) => {
+      const updatedStudents = students.map(s => {
+          const up = updates.find(u => u.studentId === s.id);
+          return up ? { ...s, classId: up.newClassId, promotionStatus: up.status } : s;
+      });
+      setStudents(updatedStudents);
+      for (const up of updates) {
+          await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId);
+      }
+      addLog(user!.id, user!.role, 'BULK_PROMOTION', `Promoted ${updates.length} students`);
+      alert("Promotion successfully applied.");
+  };
+
+  const handleGeneratePins = async (classId: string, amountPerStudent: number) => {
+      const classStudents = students.filter(s => s.classId === classId);
+      const newPins: Pin[] = [];
+      const expiry = new Date(new Date().getFullYear() + 1, 11, 31).toISOString().split('T')[0];
+
+      classStudents.forEach(s => {
+          for(let i=0; i<amountPerStudent; i++) {
+              const code = Array(3).fill(0).map(() => Math.floor(1000 + Math.random() * 9000)).join('-');
+              newPins.push({
+                  code,
+                  usageCount: 0,
+                  maxUsage: 5,
+                  generatedBy: user!.id,
+                  expiryDate: expiry,
+                  isUsed: false,
+                  assignedStudentId: s.id
+              });
+          }
+      });
+
+      await supabase.from('pins').insert(newPins);
+      setPins(prev => [...prev, ...newPins]);
+      addLog(user!.id, user!.role, 'GENERATE_PINS', `Generated pins for ${classId}`);
+      alert(`Generated ${newPins.length} PINs.`);
+  };
+
+  const handleAssignPin = async (code: string, studentId: string) => {
+      await supabase.from('pins').update({ assignedStudentId: studentId }).eq('code', code);
+      setPins(prev => prev.map(p => p.code === code ? { ...p, assignedStudentId: studentId } : p));
+  };
+
+  const handleSaveGeneralRemark = async (studentId: string, remark: string) => {
+      const field = user?.role === UserRole.PRINCIPAL ? 'principalRemark' : 'formMasterRemark';
+      const termResults = results.filter(r => 
+        r.studentId === studentId && 
+        r.session === schoolConfig.activeSession && 
+        r.term === schoolConfig.activeTerm
+      );
+      
+      if (termResults.length === 0) {
+          alert("No results found for this student to attach a remark.");
+          return;
+      }
+
+      const updated = termResults.map(r => ({ ...r, [field]: remark }));
+      setResults(prev => {
+          const rest = prev.filter(r => !updated.find(u => u.id === r.id));
+          return [...rest, ...updated];
+      });
+
+      for (const r of updated) await supabase.from('results').upsert(r);
+      addLog(user!.id, user!.role, 'SAVE_REMARK', `Updated ${field} for student ${studentId}`);
+      alert("Remark saved successfully.");
+  };
+
   // --- Views ---
   
   if (isLoadingData) {
@@ -474,7 +544,7 @@ const App: React.FC = () => {
       )}
       {view === 'results' && (
           <div className="p-4">
-              <div className="mb-4"><button onClick={() => setView('dashboard')} className="flex items-center text-gray-500 hover:text-blue-600"><ArrowLeftIcon className="h-4 w-4 mr-1"/> Back</button></div>
+              <div className="mb-4"><button onClick={() => setView('dashboard')} className="flex items-center text-gray-500 hover:text-blue-600 font-bold text-sm"><ArrowLeftIcon className="h-4 w-4 mr-1"/> Dashboard</button></div>
               {!selectedClassId ? (
                   <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 max-w-md mx-auto space-y-4">
                       <h2 className="text-xl font-bold mb-2">Select Context</h2>
@@ -542,30 +612,25 @@ const App: React.FC = () => {
           </div>
       )}
       {view === 'psychomotor' && (
-          <PsychomotorManager 
-            students={students} 
-            classes={classes} 
-            records={psychomotor} 
-            onSave={handleSavePsychomotor} 
-            userRole={user.role} 
-            assignedClassIds={user.assignedClassIds} 
-            config={schoolConfig} 
-            onUpdateConfig={saveConfig} 
-          />
+          <PsychomotorManager students={students} classes={classes} records={psychomotor} onSave={handleSavePsychomotor} userRole={user.role} assignedClassIds={user.assignedClassIds} config={schoolConfig} onUpdateConfig={saveConfig} />
       )}
+      {view === 'insights' && <Insights results={results} students={students} classes={classes} />}
+      {view === 'approvals' && <ResultApproval user={user} results={results} students={students} classes={classes} subjects={subjects} onUpdateResult={handleSaveResult} />}
+      {view === 'principal_review' && <StudentResultReview students={students} results={results} classes={classes} subjects={subjects} userRole={UserRole.PRINCIPAL} onSaveRemark={handleSaveGeneralRemark} />}
+      {view === 'fm_review' && <StudentResultReview students={students} results={results} classes={classes} subjects={subjects} userRole={UserRole.FORM_MASTER} onSaveRemark={handleSaveGeneralRemark} assignedClassIds={user.assignedClassIds} />}
+      {view === 'admin_attendance' && <AdminStaffAttendance users={users} attendanceRecords={staffAttendance} />}
+      {view === 'promotions' && <PromotionManager students={students} classes={classes} results={results} onPromoteStudents={handlePromoteStudentsBatch} />}
+      {view === 'pins' && <PinManager pins={pins} classes={classes} students={students} onGenerateForClass={handleGeneratePins} onAssignStudent={handleAssignPin} />}
+      {view === 'audit' && <AuditLogsTable logs={logs} />}
       {view === 'staff_manager' && <StaffManagement users={users} classes={classes} subjects={subjects} onAddUser={saveUser} onUpdateUser={saveUser} onDeleteUser={deleteUser} />}
-      {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} />}
+      {view === 'class_manager' && <ClassManager classes={classes} users={users} onAdd={saveClass} onUpdate={saveClass} onDelete={deleteClass} currentUser={user} students={students} results={results} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} />}
       {view === 'students_manager' && <StudentManager students={students} classes={classes} onAdd={saveStudent} onUpdate={saveStudent} onDelete={deleteStudent} schoolConfig={schoolConfig} />}
       {view === 'subjects' && <SubjectManager subjects={subjects} classes={classes} onAdd={saveSubject} onUpdate={saveSubject} onDelete={deleteSubject} />} 
       {view === 'config' && <SchoolConfigManager config={schoolConfig} onSave={saveConfig} />}
       {view === 'staff_attendance' && <StaffAttendancePanel user={user} schoolConfig={schoolConfig} attendanceHistory={staffAttendance} onClockIn={handleStaffClockIn} />}
       {view === 'reports' && <ReportsDashboard user={user} students={students} results={results} classes={classes} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} users={users} />}
       {view === 'my_result' && user.role === UserRole.STUDENT && (
-          <StudentReportCard 
-            student={students.find(s => s.id === user.id)!} 
-            results={results.filter(r => r.studentId === user.id)} 
-            subjects={subjects} classes={classes} schoolConfig={schoolConfig}
-          />
+          <StudentReportCard student={students.find(s => s.id === user.id)!} results={results.filter(r => r.studentId === user.id)} subjects={subjects} classes={classes} schoolConfig={schoolConfig} />
       )}
     </Layout>
   );
