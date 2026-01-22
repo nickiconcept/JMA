@@ -25,7 +25,7 @@ import ReportsDashboard from './components/ReportsDashboard';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance, PromotionStatus } from './types';
 import { mockUsers, mockSchoolConfig, mockStudents, mockClasses, mockSubjects, mockResults, mockPins, mockPsychomotor } from './services/mockData';
-import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, KeyIcon } from '@heroicons/react/24/solid';
+import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 import { supabase } from './services/supabase';
 
 // --- Login Screen Component ---
@@ -258,13 +258,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Auto-select class for Form Masters
-  useEffect(() => {
-    if (user?.role === UserRole.FORM_MASTER && user.assignedClassIds?.length === 1 && !selectedClassId) {
-        setSelectedClassId(user.assignedClassIds[0]);
-    }
-  }, [user, selectedClassId]);
-
   const addLog = async (userId: string, role: string, action: string, details: string) => {
     const userObj = users.find(u => u.id === userId);
     const newLog: AuditLog = {
@@ -297,25 +290,22 @@ const App: React.FC = () => {
       const passwordInput = loginCreds.password;
 
       try {
-          const { data, error } = await supabase.rpc('auth_staff', {
+          const { data } = await supabase.rpc('auth_staff', {
             email_input: emailInput,
             password_input: passwordInput
           });
           if (data) {
               handleAuthSuccess(data as User);
-              setIsAuthenticating(false);
               return;
           }
           const foundLocalUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
           if (foundLocalUser && foundLocalUser.password === passwordInput) {
                handleAuthSuccess(foundLocalUser);
-               setIsAuthenticating(false);
                return;
           }
           alert("Invalid Email or Password.");
       } catch (err) {
           console.error("Login Error", err);
-          alert("An unexpected error occurred during login.");
       } finally {
           setIsAuthenticating(false);
       }
@@ -346,7 +336,6 @@ const App: React.FC = () => {
      if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
      localStorage.removeItem('jma_session');
      setUser(null);
-     setView('login');
      setAuthView('LANDING');
   };
 
@@ -368,7 +357,6 @@ const App: React.FC = () => {
                 };
                 await supabase.from('access_requests').insert(req);
                 setAccessRequests(prev => [req, ...prev]);
-                alert("Request sent.");
             }
             return;
         }
@@ -381,7 +369,6 @@ const App: React.FC = () => {
         return [...prev, resultToSave];
     });
     await supabase.from('results').upsert(resultToSave);
-    addLog(user?.id || 'sys', user?.role || UserRole.TEACHER, 'UPDATE_RESULT', `Updated result for ${newResult.studentId}`);
   };
 
   const handleSaveAttendance = async (newRecords: Attendance[]) => {
@@ -391,7 +378,6 @@ const App: React.FC = () => {
       setAttendance(combined);
       await supabase.from('attendance').delete().eq('classId', classId).eq('date', date);
       await supabase.from('attendance').insert(newRecords);
-      addLog(user?.id || 'sys', user?.role || UserRole.FORM_MASTER, 'MARK_ATTENDANCE', `Marked attendance for ${newRecords.length} students`);
       alert("Attendance Saved!");
   };
 
@@ -436,7 +422,6 @@ const App: React.FC = () => {
   const handleStaffClockIn = async (record: StaffAttendance) => {
       await supabase.from('staff_attendance').insert(record);
       setStaffAttendance(prev => [record, ...prev]);
-      addLog(user!.id, user!.role, 'STAFF_ATTENDANCE', `Clocked in at ${record.time}`);
   };
 
   const handleSavePsychomotor = async (record: PsychomotorRecord) => {
@@ -445,10 +430,7 @@ const App: React.FC = () => {
           const idx = prev.findIndex(r => r.id === record.id);
           return idx >= 0 ? prev.map(r => r.id === record.id ? record : r) : [...prev, record];
       });
-      addLog(user!.id, user!.role, 'UPDATE_PSYCHOMOTOR', `Updated skills assessment for ${record.studentId}`);
   };
-
-  // --- New Handlers for Missing Views ---
 
   const handlePromoteStudentsBatch = async (updates: { studentId: string; newClassId: string; status: PromotionStatus }[]) => {
       const updatedStudents = students.map(s => {
@@ -459,7 +441,6 @@ const App: React.FC = () => {
       for (const up of updates) {
           await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId);
       }
-      addLog(user!.id, user!.role, 'BULK_PROMOTION', `Promoted ${updates.length} students`);
       alert("Promotion successfully applied.");
   };
 
@@ -467,25 +448,14 @@ const App: React.FC = () => {
       const classStudents = students.filter(s => s.classId === classId);
       const newPins: Pin[] = [];
       const expiry = new Date(new Date().getFullYear() + 1, 11, 31).toISOString().split('T')[0];
-
       classStudents.forEach(s => {
           for(let i=0; i<amountPerStudent; i++) {
               const code = Array(3).fill(0).map(() => Math.floor(1000 + Math.random() * 9000)).join('-');
-              newPins.push({
-                  code,
-                  usageCount: 0,
-                  maxUsage: 5,
-                  generatedBy: user!.id,
-                  expiryDate: expiry,
-                  isUsed: false,
-                  assignedStudentId: s.id
-              });
+              newPins.push({ code, usageCount: 0, maxUsage: 5, generatedBy: user!.id, expiryDate: expiry, isUsed: false, assignedStudentId: s.id });
           }
       });
-
       await supabase.from('pins').insert(newPins);
       setPins(prev => [...prev, ...newPins]);
-      addLog(user!.id, user!.role, 'GENERATE_PINS', `Generated pins for ${classId}`);
       alert(`Generated ${newPins.length} PINs.`);
   };
 
@@ -496,32 +466,24 @@ const App: React.FC = () => {
 
   const handleSaveGeneralRemark = async (studentId: string, remark: string) => {
       const field = user?.role === UserRole.PRINCIPAL ? 'principalRemark' : 'formMasterRemark';
-      const termResults = results.filter(r => 
-        r.studentId === studentId && 
-        r.session === schoolConfig.activeSession && 
-        r.term === schoolConfig.activeTerm
-      );
-      
+      const termResults = results.filter(r => r.studentId === studentId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm);
       if (termResults.length === 0) {
           alert("No results found for this student to attach a remark.");
           return;
       }
-
       const updated = termResults.map(r => ({ ...r, [field]: remark }));
       setResults(prev => {
           const rest = prev.filter(r => !updated.find(u => u.id === r.id));
           return [...rest, ...updated];
       });
-
       for (const r of updated) await supabase.from('results').upsert(r);
-      addLog(user!.id, user!.role, 'SAVE_REMARK', `Updated ${field} for student ${studentId}`);
       alert("Remark saved successfully.");
   };
 
   // --- Views ---
   
   if (isLoadingData) {
-      return <div className="h-screen flex items-center justify-center text-blue-600 font-bold">Loading Portal Data...</div>;
+      return <div className="h-screen flex items-center justify-center text-blue-600 font-black animate-pulse uppercase tracking-widest text-xs">Initializing Secure Portal...</div>;
   }
 
   if (!user) {
@@ -537,37 +499,43 @@ const App: React.FC = () => {
   return (
     <Layout user={user} onLogout={handleLogout} currentView={view} onChangeView={setView}>
       {view === 'dashboard' && (
-          <div className="p-6 text-center">
-              <h1 className="text-2xl font-bold font-display">Welcome, {user.name}</h1>
-              {user.role === UserRole.ADMIN && <div className="mt-8"><AuditLogsTable logs={logs.slice(0,5)}/></div>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                  <h1 className="text-3xl font-black font-display text-slate-900 leading-tight">Welcome back,<br/><span className="text-blue-600">{user.name}</span></h1>
+                  <p className="text-slate-500 mt-2 font-medium">Academic Session: {schoolConfig.activeSession} • {schoolConfig.activeTerm}</p>
+              </div>
+              {user.role === UserRole.ADMIN && (
+                  <div className="md:col-span-2"><AuditLogsTable logs={logs.slice(0, 10)} /></div>
+              )}
           </div>
       )}
+
       {view === 'results' && (
-          <div className="p-4">
-              <div className="mb-4"><button onClick={() => setView('dashboard')} className="flex items-center text-gray-500 hover:text-blue-600 font-bold text-sm"><ArrowLeftIcon className="h-4 w-4 mr-1"/> Dashboard</button></div>
+          <div className="space-y-6">
               {!selectedClassId ? (
-                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 max-w-md mx-auto space-y-4">
-                      <h2 className="text-xl font-bold mb-2">Select Context</h2>
-                      <select className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
-                          <option value="">Select Class</option>
-                          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                      <select className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
-                          <option value="">Select Subject</option>
-                          {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
+                  <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-lg mx-auto">
+                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-800">Result Selection</h2>
+                      <div className="space-y-4">
+                        <select className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
+                            <option value="">-- Choose Class --</option>
+                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <select className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700" onChange={e => setSelectedSubjectId(e.target.value)} value={selectedSubjectId || ''}>
+                            <option value="">-- Choose Subject --</option>
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
                   </div>
               ) : (
-                  <div>
-                      <div className="flex justify-between items-center mb-6">
-                        <h2 className="font-bold text-lg font-display text-slate-800">{classes.find(c => c.id === selectedClassId)?.name} - {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
-                        <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-sm font-bold text-blue-600 hover:underline">Change Selection</button>
+                  <div className="space-y-6">
+                      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                        <h2 className="font-black text-lg font-display text-slate-800 uppercase tracking-widest">{classes.find(c => c.id === selectedClassId)?.name} • {subjects.find(s => s.id === selectedSubjectId)?.name}</h2>
+                        <button onClick={() => { setSelectedClassId(null); setSelectedSubjectId(null); }} className="text-xs font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 underline underline-offset-4">Change Selection</button>
                       </div>
-                      <div className="space-y-6">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                         {students.filter(s => s.classId === selectedClassId).map(s => (
                             <ResultEntry 
-                                key={s.id}
-                                student={s} subject={subjects.find(x=>x.id===selectedSubjectId)?.name || ''} 
+                                key={s.id} student={s} subject={subjects.find(x=>x.id===selectedSubjectId)?.name || ''} 
                                 subjectId={selectedSubjectId!} session={schoolConfig.activeSession} term={schoolConfig.activeTerm}
                                 existingResult={results.find(r => r.studentId === s.id && r.subjectId === selectedSubjectId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm)}
                                 onSave={handleSaveResult}
@@ -578,42 +546,29 @@ const App: React.FC = () => {
               )}
           </div>
       )}
+
       {view === 'attendance' && (
           <div className="p-4">
               {!selectedClassId ? (
-                  <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 max-w-md mx-auto">
-                      <h2 className="text-xl font-bold mb-4 font-display">Select Class for Attendance</h2>
-                      <select 
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
-                          onChange={e => setSelectedClassId(e.target.value)} 
-                          value={selectedClassId || ''}
-                      >
+                  <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-lg mx-auto">
+                      <h2 className="text-xl font-black font-display mb-6 uppercase tracking-wider text-slate-800">Class Attendance</h2>
+                      <select className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700" onChange={e => setSelectedClassId(e.target.value)} value={selectedClassId || ''}>
                           <option value="">-- Choose Class --</option>
                           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                   </div>
               ) : (
                   <>
-                      <div className="mb-4 flex justify-between items-center">
-                          <button onClick={() => setSelectedClassId(null)} className="flex items-center text-sm font-bold text-blue-600 hover:underline">
-                              ← Change Class
-                          </button>
-                          <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">{classes.find(c => c.id === selectedClassId)?.name}</span>
+                      <div className="mb-6 flex justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                          <button onClick={() => setSelectedClassId(null)} className="text-xs font-black text-blue-600 uppercase tracking-widest hover:underline">← Change Class</button>
+                          <span className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">{classes.find(c => c.id === selectedClassId)?.name}</span>
                       </div>
-                      <AttendanceRegister 
-                          currentClass={classes.find(c => c.id === selectedClassId)!} 
-                          students={students.filter(s => s.classId === selectedClassId)} 
-                          attendanceRecords={attendance} 
-                          onSaveAttendance={handleSaveAttendance} 
-                          currentUserRole={user.role}
-                      />
+                      <AttendanceRegister currentClass={classes.find(c => c.id === selectedClassId)!} students={students.filter(s => s.classId === selectedClassId)} attendanceRecords={attendance} onSaveAttendance={handleSaveAttendance} currentUserRole={user.role} />
                   </>
               )}
           </div>
       )}
-      {view === 'psychomotor' && (
-          <PsychomotorManager students={students} classes={classes} records={psychomotor} onSave={handleSavePsychomotor} userRole={user.role} assignedClassIds={user.assignedClassIds} config={schoolConfig} onUpdateConfig={saveConfig} />
-      )}
+
       {view === 'insights' && <Insights results={results} students={students} classes={classes} />}
       {view === 'approvals' && <ResultApproval user={user} results={results} students={students} classes={classes} subjects={subjects} onUpdateResult={handleSaveResult} />}
       {view === 'principal_review' && <StudentResultReview students={students} results={results} classes={classes} subjects={subjects} userRole={UserRole.PRINCIPAL} onSaveRemark={handleSaveGeneralRemark} />}
@@ -629,6 +584,8 @@ const App: React.FC = () => {
       {view === 'config' && <SchoolConfigManager config={schoolConfig} onSave={saveConfig} />}
       {view === 'staff_attendance' && <StaffAttendancePanel user={user} schoolConfig={schoolConfig} attendanceHistory={staffAttendance} onClockIn={handleStaffClockIn} />}
       {view === 'reports' && <ReportsDashboard user={user} students={students} results={results} classes={classes} subjects={subjects} schoolConfig={schoolConfig} psychomotorRecords={psychomotor} users={users} />}
+      {view === 'psychomotor' && <PsychomotorManager students={students} classes={classes} records={psychomotor} onSave={handleSavePsychomotor} userRole={user.role} assignedClassIds={user.assignedClassIds} config={schoolConfig} onUpdateConfig={saveConfig} />}
+      
       {view === 'my_result' && user.role === UserRole.STUDENT && (
           <StudentReportCard student={students.find(s => s.id === user.id)!} results={results.filter(r => r.studentId === user.id)} subjects={subjects} classes={classes} schoolConfig={schoolConfig} />
       )}
