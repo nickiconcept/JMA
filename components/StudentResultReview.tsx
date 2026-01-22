@@ -24,9 +24,8 @@ const StudentResultReview: React.FC<Props> = ({
     const [isGenerating, setIsGenerating] = useState(false);
 
     // International-aware formatting
-    const locale = navigator.language || 'en-NG';
-    const percentFormat = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 });
-
+    const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-NG';
+    
     const visibleClasses = useMemo(() => {
         if (userRole === UserRole.ADMIN || userRole === UserRole.PRINCIPAL) return classes;
         return classes.filter(c => assignedClassIds.includes(c.id));
@@ -38,6 +37,10 @@ const StudentResultReview: React.FC<Props> = ({
     
     const handleStudentSelect = (id: string) => {
         setSelectedStudentId(id);
+        if (!id) {
+            setRemark('');
+            return;
+        }
         const studentResults = results.filter(r => r.studentId === id);
         if (studentResults.length > 0) {
             setRemark(userRole === UserRole.PRINCIPAL ? (studentResults[0].principalRemark || '') : (studentResults[0].formMasterRemark || ''));
@@ -82,7 +85,7 @@ const StudentResultReview: React.FC<Props> = ({
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-500" dir="auto">
             {/* Context Selector */}
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -96,7 +99,11 @@ const StudentResultReview: React.FC<Props> = ({
                         <select 
                             className="px-5 py-3.5 rounded-2xl border border-slate-200 text-sm font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
                             value={selectedClassId}
-                            onChange={e => { setSelectedClassId(e.target.value); setSelectedStudentId(''); setRemark(''); }}
+                            onChange={e => { 
+                                setSelectedClassId(e.target.value); 
+                                setSelectedStudentId(''); 
+                                setRemark(''); 
+                            }}
                         >
                             <option value="">-- Select Class --</option>
                             {visibleClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

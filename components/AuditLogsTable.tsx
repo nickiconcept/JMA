@@ -7,8 +7,19 @@ interface Props {
 }
 
 const AuditLogsTable: React.FC<Props> = ({ logs }) => {
+  // Use dynamic locale for internationalization
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-NG';
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
   return (
-    <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden" dir="auto">
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">System Audit Logs</h3>
         <button className="text-sm text-green-700 hover:underline">Export CSV</button>
@@ -29,7 +40,7 @@ const AuditLogsTable: React.FC<Props> = ({ logs }) => {
             {logs.map((log) => (
               <tr key={log.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                  {new Date(log.timestamp).toLocaleString('en-NG')}
+                  {dateFormatter.format(new Date(log.timestamp))}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {log.userName || log.userId}

@@ -25,7 +25,6 @@ import ReportsDashboard from './components/ReportsDashboard';
 
 import { User, UserRole, Result, Student, AuditLog, ClassDefinition, Subject, Attendance, Pin, SchoolConfig, PsychomotorRecord, Term, AccessRequest, RequestStatus, RequestType, StaffAttendance, PromotionStatus } from './types';
 import { mockUsers, mockSchoolConfig, mockStudents, mockClasses, mockSubjects, mockResults, mockPins, mockPsychomotor } from './services/mockData';
-// Added CalendarDaysIcon to fix the "Cannot find name 'CalendarDaysIcon'" error
 import { UserCircleIcon, AcademicCapIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/solid';
 import { supabase } from './services/supabase';
 
@@ -258,7 +257,11 @@ const App: React.FC = () => {
       ipAddress: '127.0.0.1'
     };
     setLogs(prev => [newLog, ...prev]);
-    await supabase.from('audit_logs').insert(newLog).catch(console.error);
+    try {
+        await supabase.from('audit_logs').insert(newLog);
+    } catch (err) {
+        console.error("Logging failed", err);
+    }
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
@@ -323,7 +326,7 @@ const App: React.FC = () => {
      if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
      localStorage.removeItem('jma_session');
      setUser(null);
-     setView('dashboard'); // Reset view for next user
+     setView('dashboard'); 
      setAuthView('LANDING');
   };
 
@@ -407,7 +410,11 @@ const App: React.FC = () => {
       });
       setStudents(updatedStudents);
       for (const up of updates) {
-          await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId).catch(console.error);
+          try {
+            await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId);
+          } catch (err) {
+            console.error("Batch promotion failed for", up.studentId, err);
+          }
       }
       alert("Promotions processed.");
   };

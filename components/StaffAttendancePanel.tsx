@@ -15,8 +15,23 @@ const StaffAttendancePanel: React.FC<Props> = ({ user, schoolConfig, attendanceH
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // International formatting context
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-NG';
   const todayStr = new Date().toISOString().split('T')[0];
   const todayRecord = attendanceHistory.find(a => a.staffId === user.id && a.date === todayStr);
+
+  const dateFormatter = new Intl.DateTimeFormat(locale, { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  const timeFormatter = new Intl.DateTimeFormat(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 
   // Haversine formula to calculate distance in meters
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -35,7 +50,6 @@ const StaffAttendancePanel: React.FC<Props> = ({ user, schoolConfig, attendanceH
   };
 
   const handleClockIn = () => {
-    // strict check
     if (todayRecord) {
         setError("You have already clocked in for today.");
         return;
@@ -77,11 +91,11 @@ const StaffAttendancePanel: React.FC<Props> = ({ user, schoolConfig, attendanceH
                 id: `sa-${Date.now()}`,
                 staffId: user.id,
                 date: todayStr,
-                time: now.toLocaleTimeString('en-US', { hour12: true }),
+                time: timeFormatter.format(now),
                 timestamp: now.toISOString(),
                 coordinates: { lat: latitude, lng: longitude },
                 distanceFromSchool: distance,
-                status: 'PRESENT' // Logic for LATE could be added here based on time
+                status: 'PRESENT' 
             };
 
             onClockIn(newRecord);
@@ -100,20 +114,19 @@ const StaffAttendancePanel: React.FC<Props> = ({ user, schoolConfig, attendanceH
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="auto">
        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
               <h2 className="text-2xl font-bold font-display text-slate-900">Staff Attendance</h2>
               <p className="text-slate-500 text-sm">Clock in daily using GPS verification.</p>
           </div>
           <div className="text-right">
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Today's Date</p>
-              <p className="text-lg font-bold text-slate-800">{new Date().toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Current Date</p>
+              <p className="text-lg font-bold text-slate-800">{dateFormatter.format(new Date())}</p>
           </div>
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-           {/* Clock In Card */}
            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center text-center">
                {todayRecord ? (
                    <div className="space-y-4">
@@ -151,7 +164,6 @@ const StaffAttendancePanel: React.FC<Props> = ({ user, schoolConfig, attendanceH
                )}
            </div>
 
-           {/* Stats / Recent History */}
            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                    <ClockIcon className="h-5 w-5 text-slate-400" /> Recent History
@@ -164,7 +176,9 @@ const StaffAttendancePanel: React.FC<Props> = ({ user, schoolConfig, attendanceH
                            {attendanceHistory.slice(0, 5).map(record => (
                                <li key={record.id} className="py-3 flex justify-between items-center">
                                    <div>
-                                       <p className="text-sm font-bold text-slate-700">{new Date(record.date).toLocaleDateString()}</p>
+                                       <p className="text-sm font-bold text-slate-700">
+                                            {new Intl.DateTimeFormat(locale).format(new Date(record.date))}
+                                       </p>
                                        <p className="text-xs text-slate-400">Distance: {Math.round(record.distanceFromSchool)}m</p>
                                    </div>
                                    <div className="text-right">
