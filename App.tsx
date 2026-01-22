@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, ReactNode, ErrorInfo } from 'react';
 import Layout from './components/Layout';
 import Button from './components/Button';
 import ResultEntry from './components/ResultEntry';
@@ -30,36 +30,46 @@ import { supabase } from './services/supabase';
 
 // --- Simple Error Boundary Component ---
 interface ErrorBoundaryProps {
-  children: React.ReactNode;
+  // children made optional to resolve TS error on line 525 where children prop is not explicitly recognized in JSX
+  children?: ReactNode;
 }
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  error?: Error;
 }
 
-// Fixed ErrorBoundary by explicitly defining state and props interfaces to resolve TS errors
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+// Fixed ErrorBoundary by using explicit Component import and standard property access
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) { 
     super(props); 
     this.state = { hasError: false }; 
   }
   
-  static getDerivedStateFromError(_: Error): ErrorBoundaryState { 
-    return { hasError: true }; 
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState { 
+    return { hasError: true, error }; 
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("CRITICAL UI ERROR:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border-2 border-dashed border-red-200 p-12 text-center">
-          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-black text-slate-900 uppercase">Component Failed to Render</h2>
-          <p className="text-slate-500 text-sm mt-2 max-w-sm">A critical error occurred in this module. Try reloading or switching views.</p>
-          <Button className="mt-6" variant="outline" onClick={() => window.location.reload()}>Reload Portal</Button>
+        <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-[3rem] border-4 border-dashed border-red-50 p-12 text-center animate-in fade-in duration-500">
+          <div className="bg-red-50 p-6 rounded-3xl mb-6">
+            <ExclamationTriangleIcon className="h-14 w-14 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 uppercase font-display tracking-tight">Portal Render Failed</h2>
+          <p className="text-slate-500 text-sm mt-3 max-w-sm font-medium leading-relaxed">
+            The system encountered an unexpected structural error in this module. 
+            {this.state.error?.message && <span className="block mt-2 font-mono text-[10px] text-red-400">Error: {this.state.error.message}</span>}
+          </p>
+          <div className="flex gap-3 mt-8">
+            <Button variant="primary" className="shadow-red-500/20" onClick={() => window.location.reload()}>Reload Dashboard</Button>
+            <Button variant="outline" onClick={() => this.setState({ hasError: false })}>Dismiss Error</Button>
+          </div>
         </div>
       );
     }
@@ -252,7 +262,7 @@ const App: React.FC = () => {
             if (requestsRes.data) setAccessRequests(requestsRes.data);
 
         } catch (e) {
-            console.error("Data fetch failure", e);
+            console.error("Supabase load error, reverting to mocks", e);
             setUsers(mockUsers);
             setStudents(mockStudents);
             setClasses(mockClasses);
@@ -279,7 +289,7 @@ const App: React.FC = () => {
             } else {
                 localStorage.removeItem('jma_session');
             }
-        } catch(e) { console.error("Session restoration error", e); }
+        } catch(e) { console.error("Session sync error", e); }
     }
   }, []);
 
@@ -299,16 +309,16 @@ const App: React.FC = () => {
     try {
         await supabase.from('audit_logs').insert(newLog);
     } catch (err) {
-        console.error("Logging failed", err);
+        console.error("Log upload failure", err);
     }
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
-      const expiry = new Date().getTime() + (60 * 60 * 1000); // 1 hour session
+      const expiry = new Date().getTime() + (30 * 60 * 1000); // 30min session
       localStorage.setItem('jma_session', JSON.stringify({ user: authenticatedUser, expiry }));
       setUser(authenticatedUser);
       setView('dashboard');
-      addLog(authenticatedUser.id, authenticatedUser.role, 'LOGIN_SUCCESS', 'User login successful');
+      addLog(authenticatedUser.id, authenticatedUser.role, 'LOGIN_SUCCESS', 'User login protocol complete');
       setLoginCreds({ email: '', password: '', admissionNo: '', pin: '' });
   };
 
@@ -332,7 +342,7 @@ const App: React.FC = () => {
                handleAuthSuccess(foundLocalUser);
                return;
           }
-          alert("Unauthorized access. Invalid credentials.");
+          alert("Unauthorized: Verify credentials and attempt again.");
       } catch (err) {
           console.error("Auth Failure", err);
       } finally {
@@ -347,10 +357,10 @@ const App: React.FC = () => {
       const student = students.find(s => s.id === admissionInput);
       const pin = pins.find(p => p.code === loginCreds.pin.trim());
 
-      if (!student) { alert("Invalid Admission Number."); setIsAuthenticating(false); return; }
-      if (!pin) { alert("Invalid PIN."); setIsAuthenticating(false); return; }
-      if (pin.assignedStudentId && pin.assignedStudentId !== student.id) { alert("PIN assigned to another student."); setIsAuthenticating(false); return; }
-      if (pin.usageCount >= pin.maxUsage) { alert("PIN expired."); setIsAuthenticating(false); return; }
+      if (!student) { alert("ID Error: Admission number not found."); setIsAuthenticating(false); return; }
+      if (!pin) { alert("Access Error: Invalid Result PIN."); setIsAuthenticating(false); return; }
+      if (pin.assignedStudentId && pin.assignedStudentId !== student.id) { alert("Security: PIN assigned to another ID."); setIsAuthenticating(false); return; }
+      if (pin.usageCount >= pin.maxUsage) { alert("PIN Policy: Maximum usage limit reached."); setIsAuthenticating(false); return; }
 
       const updatedPin = { ...pin, usageCount: pin.usageCount + 1, isUsed: true, assignedStudentId: student.id };
       await supabase.from('pins').update(updatedPin).eq('code', pin.code);
@@ -362,7 +372,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-     if(user) addLog(user.id, user.role, 'LOGOUT', 'User logged out');
+     if(user) addLog(user.id, user.role, 'LOGOUT', 'Session terminated by user');
      localStorage.removeItem('jma_session');
      setUser(null);
      setView('dashboard'); 
@@ -452,7 +462,7 @@ const App: React.FC = () => {
           try {
             await supabase.from('students').update({ classId: up.newClassId, promotionStatus: up.status }).eq('id', up.studentId);
           } catch (err) {
-            console.error("Batch promotion failure", err);
+            console.error("Batch update error", err);
           }
       }
   };
@@ -480,7 +490,7 @@ const App: React.FC = () => {
       const field = user?.role === UserRole.PRINCIPAL ? 'principalRemark' : 'formMasterRemark';
       const termResults = results.filter(r => r.studentId === studentId && r.session === schoolConfig.activeSession && r.term === schoolConfig.activeTerm);
       if (termResults.length === 0) {
-          alert("No terminal records found to save remarks to.");
+          alert("Audit Error: No terminal data found to apply remark.");
           return;
       }
       const updated = termResults.map(r => ({ ...r, [field]: remark }));
@@ -491,13 +501,13 @@ const App: React.FC = () => {
       for (const r of updated) await supabase.from('results').upsert(r);
   };
 
-  // --- Views ---
+  // --- Main View Renderer ---
   
   if (isLoadingData) {
       return (
         <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white space-y-4">
-            <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent animate-spin rounded-full"></div>
-            <p className="font-black text-xs uppercase tracking-widest animate-pulse">Initializing Portal...</p>
+            <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent animate-spin rounded-full"></div>
+            <p className="font-black text-[10px] uppercase tracking-widest animate-pulse">Synchronizing Academic Data...</p>
         </div>
       );
   }
